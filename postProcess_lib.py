@@ -350,8 +350,22 @@ def integrateDomain( filename, jump, total_timesteps, elements_x, elements_y, gr
         # y_cluster: geometric ratio used to cluster gridpoints in the y-direction.
         # gridType: 0 - half domain (i.e. x goes from 0-50 while y goes from 0-100 with a half-plume), 1 - full domain (i.e. domain is square).
 
-
 #PseudoColourPlotting( 'plume_v2_largeIni', 1, 1, 3, 40, 50, 100, 100, 1.25, 1.1, 1 )
+
+
+# The function integrateDomain takes the following form and plots line data from a Nek5000 run.
+# integrateDomain( filename, jump, total_timesteps, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType )
+# Inputs are as follows:
+        # filename: name that comes before the 0.f##### in the output files from Nek5000.
+        # jump: number of 0.f##### files to skip between each plot.
+        # total_timesteps: number of 0.f##### files to consider (not number of last file).
+        # elements_x: number of elements in the x-direction.
+        # elements_y: number of elements in the y -direction.
+        # gridpoints_x: number of gridpoints in the x-direction.
+        # gridpoints_y: number of gridpoints in the y-direction.
+        # x_cluster: geometric ratio used to cluster gridpoints in the x-direction.
+        # y_cluster: geometric ratio used to cluster gridpoints in the y-direction.
+        # gridType: 0 - half domain (i.e. x goes from 0-50 while y goes from 0-100 with a half-plume), 1 - full domain (i.e. domain is square).
 
 #integrateDomain( 'plume_v2_largeIni', 10, 2400, 40, 80, 50, 100 )
 

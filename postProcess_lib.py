@@ -158,8 +158,28 @@ def myPcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_counte
 
 	return
 
+def particlePcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_counter,x_ppos,y_ppos,**kwargs):
+        # Plots figure easily, without having to repeat everything multiple times.
 
-def PseudoColourPlotting( filename, jump, total_timesteps, numPlots, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType ):
+        plt.figure(figsize=(50, 50)) # Increases resolution.
+        plt.xlabel(x_label,fontsize=80)
+        plt.ylabel(y_label,fontsize=80)
+        plt.xticks(x_range, fontsize = 60)
+        plt.yticks(y_range, fontsize = 60)
+        plt.pcolor(x,y,data,**kwargs)
+        cbar = plt.colorbar()
+        cbar.ax.tick_params(labelsize = 60)  # vertically oriented colorbar
+
+	plt.plot(x_ppos,y_ppos,color='black',markersize=10)
+
+        plt.savefig(''.join([filename,name,repr(file_counter).zfill(5),'.png']))
+
+        plt.close('all')
+
+        return
+
+
+def PseudoColourPlotting( filename, jump, total_timesteps, numPlots, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType, particles ):
 	# Plots data from a Nek5000 run.  Inputs are as follows:
 	# filename: name that comes before the 0.f##### in the output files from Nek5000.
 	# jump: number of 0.f##### files to skip between each plot.
@@ -172,12 +192,13 @@ def PseudoColourPlotting( filename, jump, total_timesteps, numPlots, elements_x,
 	# x_cluster: geometric ratio used to cluster gridpoints in the x-direction.
 	# y_cluster: geometric ratio used to cluster gridpoints in the y-direction.
 	# gridType: 0 - half domain (i.e. x goes from 0-50 while y goes from 0-100 with a half-plume), 1 - full domain (i.e. domain is square).
+	# particles: switch to plot particle paths if particles are included in the simulation.
 	
 	total_files = total_timesteps/jump;
 
 	file_counter = 1
 
-	range_vals = np.array(range(0,total_files))*jump
+	range_vals = np.array(range(1,total_files))*jump
 	for k in range_vals:
 
 	    # Outputs counter to terminal.
@@ -190,19 +211,17 @@ def PseudoColourPlotting( filename, jump, total_timesteps, numPlots, elements_x,
 	    data,time,istep = readnek(''.join([filename,'0.f',repr(k+1).zfill(5)]))
 	    # Reshapes data onto uniform grid.
 	    [ mesh ] = reshapenek(data, elements_y, elements_x)
-
 	    # Consider only the necessary number of plots.
 	    if (numPlots == 1):
-		temperature = mesh[:,:,5]
+		temperature = mesh[:,:,3]
 	    elif (numPlots == 2):
-		temperature = mesh[:,:,5]
-		verVel = mesh[:,:,3]
+		temperature = mesh[:,:,3]
+		verVel = mesh[:,:,1]
 	    elif (numPlots == 3):
-		verVel = mesh[:,:,3]
-		horVel = mesh[:,:,2]
-		temperature = mesh[:,:,5]
+		verVel = mesh[:,:,1]
+		horVel = mesh[:,:,0]
+		temperature = mesh[:,:,3]
 		magVel = np.sqrt(np.square(verVel) + np.square(horVel))
-
 	    # Defines size of grid.
 	    if( gridType == 0 ):
 		[ x ] = geometricRatio(1/x_cluster,elements_x,gridpoints_x)
@@ -212,6 +231,18 @@ def PseudoColourPlotting( filename, jump, total_timesteps, numPlots, elements_x,
 	    	x = np.concatenate([ x1[:-1], [ x+50 for x in x2 ] ])
 
 	    [ y ] = geometricRatio(y_cluster,elements_y,gridpoints_y)
+	    
+	    # Reading in particle data.
+	    if (particles == 1):
+		npart = (k+1)*4
+                pname = ''.join(['part',repr(npart+1).zfill(5),'.3D'])
+                text_file = open(pname,"r")
+
+                lines = text_file.read().strip()
+                lines = lines.splitlines()
+                lines = np.asarray([ map(float, line.split()) for line in lines ])
+                x_pos = lines[:,0]
+                y_pos = lines[:,1]
 
 	    for plotNum in range(0,numPlots):
 		if (plotNum == 0):
@@ -230,8 +261,13 @@ def PseudoColourPlotting( filename, jump, total_timesteps, numPlots, elements_x,
                     c_max = 5
 		    name = '_magVel_'
 
-	    	# Plots reshaped data
-		myPcolour(x,y,dataPlot,'Horizontal position','Vertical position',range(0,101,10),range(0,101,10),filename,name,file_counter,vmin=c_min,vmax=c_max)
+		if (particles == 0):
+		    # Plots reshaped data
+		    myPcolour(x,y,dataPlot,'Horizontal position','Vertical position',range(0,101,10),range(0,101,10),filename,name,file_counter,vmin=c_min,vmax=c_max)
+		elif (particles == 1):
+		    particlePcolour(x,y,dataPlot,'Horizontal position','Vertical position',range(0,101,10),range(0,101,10),filename,name,file_counter,x_pos,y_pos,vmin=c_min,vmax=c_max)
+
+
 
 	    file_counter = file_counter + 1
 

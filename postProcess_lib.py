@@ -170,7 +170,7 @@ def particlePcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_
         cbar = plt.colorbar()
         cbar.ax.tick_params(labelsize = 60)  # vertically oriented colorbar
 
-	plt.plot(x_ppos,y_ppos,color='black',markersize=10)
+	plt.scatter(x_ppos,y_ppos,marker='.',color='black')
 
         plt.savefig(''.join([filename,name,repr(file_counter).zfill(5),'.png']))
 

@@ -3,6 +3,8 @@ import math
 from array import array
 import sys
 import matplotlib.pyplot as plt
+# The following allows the script to work over SSH.  Check it still works when not SSH tunnelling.
+plt.switch_backend('agg')
 import os
 
 def readnek( fname ):
@@ -143,14 +145,14 @@ def geometricRatio( r, n, Sn ):
 def myPcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_counter,**kwargs):
 	# Plots figure easily, without having to repeat everything multiple times.
 	
-        plt.figure(figsize=(50, 50)) # Increases resolution.
-        plt.xlabel(x_label,fontsize=80)
-        plt.ylabel(y_label,fontsize=80)
-        plt.xticks(x_range, fontsize = 60)
-        plt.yticks(y_range, fontsize = 60)
+        plt.figure(figsize=(25, 25)) # Increases resolution.
+        plt.xlabel(x_label,fontsize=40)
+        plt.ylabel(y_label,fontsize=40)
+        plt.xticks(x_range, fontsize = 30)
+        plt.yticks(y_range, fontsize = 30)
         plt.pcolor(x,y,data,**kwargs)
         cbar = plt.colorbar()
-        cbar.ax.tick_params(labelsize = 60)  # vertically oriented colorbar
+        cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
 
         plt.savefig(''.join([filename,name,repr(file_counter).zfill(5),'.png']))
 
@@ -161,14 +163,14 @@ def myPcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_counte
 def particlePcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_counter,x_ppos,y_ppos,**kwargs):
         # Plots figure easily, without having to repeat everything multiple times.
 
-        plt.figure(figsize=(50, 50)) # Increases resolution.
-        plt.xlabel(x_label,fontsize=80)
-        plt.ylabel(y_label,fontsize=80)
-        plt.xticks(x_range, fontsize = 60)
-        plt.yticks(y_range, fontsize = 60)
+        plt.figure(figsize=(25, 25)) # Increases resolution.
+        plt.xlabel(x_label,fontsize=40)
+        plt.ylabel(y_label,fontsize=40)
+        plt.xticks(x_range, fontsize = 30)
+        plt.yticks(y_range, fontsize = 30)
         plt.pcolor(x,y,data,**kwargs)
         cbar = plt.colorbar()
-        cbar.ax.tick_params(labelsize = 60)  # vertically oriented colorbar
+        cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
 
 	plt.scatter(x_ppos,y_ppos,marker='.',color='black')
 
@@ -179,7 +181,7 @@ def particlePcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_
         return
 
 
-def PseudoColourPlotting( filename, jump, total_timesteps, numPlots, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType, particles ):
+def PseudoColourPlotting( filename, start_file, jump, total_timesteps, numPlots, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType, particles ):
 	# Plots data from a Nek5000 run.  Inputs are as follows:
 	# filename: name that comes before the 0.f##### in the output files from Nek5000.
 	# jump: number of 0.f##### files to skip between each plot.
@@ -197,12 +199,20 @@ def PseudoColourPlotting( filename, jump, total_timesteps, numPlots, elements_x,
 	total_files = total_timesteps/jump;
 
 	file_counter = 1
+	
+	if (start_file == 1):
+	    range_vals = np.array(range(1,total_files))*jump
+	else:
+	    range_vals = np.array(range(start_file/jump,total_files))*jump
 
-	range_vals = np.array(range(1,total_files))*jump
 	for k in range_vals:
 
 	    # Outputs counter to terminal.
-            files_remaining = total_files - k/jump
+	    if (start_file == 1):
+		files_remaining = total_files - k/jump
+	    else:
+            	files_remaining = total_files - k/jump - start_file/jump
+
             sys.stdout.write("\r")
             sys.stdout.write("Files remaining: {:2d}".format(files_remaining))
             sys.stdout.flush()
@@ -212,16 +222,29 @@ def PseudoColourPlotting( filename, jump, total_timesteps, numPlots, elements_x,
 	    # Reshapes data onto uniform grid.
 	    [ mesh ] = reshapenek(data, elements_y, elements_x)
 	    # Consider only the necessary number of plots.
-	    if (numPlots == 1):
-		temperature = mesh[:,:,3]
-	    elif (numPlots == 2):
-		temperature = mesh[:,:,3]
-		verVel = mesh[:,:,1]
-	    elif (numPlots == 3):
-		verVel = mesh[:,:,1]
-		horVel = mesh[:,:,0]
-		temperature = mesh[:,:,3]
-		magVel = np.sqrt(np.square(verVel) + np.square(horVel))
+	    if (particles == 1):
+	    	if (numPlots == 1):
+		    temperature = mesh[:,:,3]
+	    	elif (numPlots == 2):
+		    temperature = mesh[:,:,3]
+		    verVel = mesh[:,:,1]
+	    	elif (numPlots == 3):
+		    verVel = mesh[:,:,1]
+		    horVel = mesh[:,:,0]
+		    temperature = mesh[:,:,3]
+		    magVel = np.sqrt(np.square(verVel) + np.square(horVel))
+	    else:
+		if (numPlots == 1):
+                    temperature = mesh[:,:,5]
+                elif (numPlots == 2):
+                    temperature = mesh[:,:,5]
+                    verVel = mesh[:,:,3]
+                elif (numPlots == 3):
+                    verVel = mesh[:,:,3]
+                    horVel = mesh[:,:,2]
+                    temperature = mesh[:,:,5]
+                    magVel = np.sqrt(np.square(verVel) + np.square(horVel))
+
 	    # Defines size of grid.
 	    if( gridType == 0 ):
 		[ x ] = geometricRatio(1/x_cluster,elements_x,gridpoints_x)
@@ -248,7 +271,7 @@ def PseudoColourPlotting( filename, jump, total_timesteps, numPlots, elements_x,
 		if (plotNum == 0):
 		    dataPlot = temperature
 		    c_min = 0
-		    c_max = 2
+		    c_max = 4
 		    name = '_temp_'
 		elif (plotNum == 1):
 		    dataPlot = verVel
@@ -371,12 +394,54 @@ def integrateDomain( filename, jump, total_timesteps, elements_x, elements_y, gr
 
 	return
 
-# The function PseudoColourPlotting takes the following form and plots data from a Nek5000 run.
-# PseudoColourPlotting( filename, jump, total_timesteps, numPlots, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType )
-# Inputs are as follows:
+def meshInd( filename, jump, total_timesteps, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType ):
+        # Plots line data from a Nek5000 run.  Inputs are as follows:
         # filename: name that comes before the 0.f##### in the output files from Nek5000.
         # jump: number of 0.f##### files to skip between each plot.
-        # total_timesteps: number of 0.f##### files to consider (not number of last file).
+        # total_timesteps: number of the last 0.f##### file to consider.
+        # elements_x: number of elements in the x-direction.
+        # elements_y: number of elements in the y -direction.
+        # gridpoints_x: number of gridpoints in the x-direction.
+        # gridpoints_y: number of gridpoints in the y-direction.
+        # x_cluster: geometric ratio used to cluster gridpoints in the x-direction.
+        # y_cluster: geometric ratio used to cluster gridpoints in the y-direction.
+        # gridType: 0 - half domain (i.e. x goes from 0-50 while y goes from 0-100 with a half-plume), 1 - full domain (i.e. domain is square).
+
+	total_files = total_timesteps/jump
+        file_counter = 1
+
+        range_vals = np.array(range(0,total_files))*jump
+        for k in range_vals:
+
+            # Outputs counter to terminal.
+            files_remaining = total_files - k/jump
+            sys.stdout.write("\r")
+            sys.stdout.write("Files remaining: {:2d}".format(files_remaining))
+            sys.stdout.flush()
+
+            # Reads data files.
+            data,time,istep = readnek(''.join([filename,'0.f',repr(k+1).zfill(5)]))
+            # Reshapes data onto uniform grid.
+            [ mesh ] = reshapenek(data, elements_y, elements_x)
+            verVel = mesh[:,:,3]
+            horVel = mesh[:,:,2]
+	    mean_u = np.mean(verVel)
+	    mean_v = np.mean(horVel)
+
+	    u_prime = [(x-mean_u)**2 for x in verVel]
+	    v_prime = [(x-mean_v)**2 for x in horVel]
+
+	    k = 0.5*(np.mean(u_prime) + np.mean(v_prime))
+	    print k
+
+	return
+
+
+def particleAdvect( filename, jump, total_timesteps, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster ):
+        # Plots data from a Nek5000 run.  Inputs are as follows:
+        # filename: name that comes before the 0.f##### in the output files from Nek5000.
+        # jump: number of 0.f##### files to skip between each plot.
+        # total_timesteps: number of the last 0.f##### file to consider.
         # numPlots: number of plots to produce (1 - temperature only, 2 - temperature and vertical velocity, 3 - temperature, vertical velocity, and magnitude of velocity).
         # elements_x: number of elements in the x-direction.
         # elements_y: number of elements in the y -direction.
@@ -385,27 +450,115 @@ def integrateDomain( filename, jump, total_timesteps, elements_x, elements_y, gr
         # x_cluster: geometric ratio used to cluster gridpoints in the x-direction.
         # y_cluster: geometric ratio used to cluster gridpoints in the y-direction.
         # gridType: 0 - half domain (i.e. x goes from 0-50 while y goes from 0-100 with a half-plume), 1 - full domain (i.e. domain is square).
+        # particles: switch to plot particle paths if particles are included in the simulation.
 
-#PseudoColourPlotting( 'plume_v2_largeIni', 1, 1, 3, 40, 50, 100, 100, 1.25, 1.1, 1 )
+        total_files = total_timesteps/jump;
+
+	# Initial values of particle parameters.
+        initial_particle_x = 49.0
+        initial_particle_y = 1.0
+        particle_x_velocity = 0.0
+        particle_y_velocity = 0.0
+
+	# Calulation of settling velocity of particle.
+	fluid_viscosity = 8.76e-6
+	fluid_density = 1000 
+	particle_density = 2000
+	particle_diameter = 0.0001
+	particle_settlingVel = 9.81*particle_diameter**2*(particle_density - fluid_density)/(18*fluid_viscosity)
+	print particle_settlingVel
+
+        # Initialisation of loop.
+        file_counter = 1
+        time_old = 0
+        range_vals = np.array(range(1,total_files))*jump
+	particle_position_x = initial_particle_x
+	particle_position_y = initial_particle_y
+	particle_position_vector = np.zeros((total_files,2))
+	particle_position_vector[0,:] = [particle_position_x,particle_position_y]
+
+        for k in range_vals:
+
+            # Outputs counter to terminal.
+            files_remaining = total_files - k/jump
+
+            sys.stdout.write("\r")
+            sys.stdout.write("Files remaining: {:2d}".format(files_remaining))
+            sys.stdout.flush()
+
+            # Reads data files.
+            data,time,istep = readnek(''.join([filename,'0.f',repr(k+1).zfill(5)]))
+            # Reshapes data onto uniform grid.
+            [ mesh ] = reshapenek(data, elements_y, elements_x)
+	    verVel = mesh[:,:,3]
+            horVel = mesh[:,:,2]
+	  
+	    # Compute timestep.
+	    dt = time - time_old
+	    time_old = time
+
+            # Defines size of grid.
+            [ x ] = geometricRatio(x_cluster,elements_x,gridpoints_x)
+            [ y ] = geometricRatio(y_cluster,elements_y,gridpoints_y)
+
+	    #plt.pcolor(x,y,verVel)
+	    #plt.savefig(''.join([filename,'_particle2','.png']))
+
+	    # Computes gridbox in which the particle lies.
+	    x_range = np.array(range(0,len(x)))
+            y_range = np.array(range(0,len(y)))
+	    breaker_x = 0
+	    breaker_y = 0
+	    for x_pos in x_range:
+		if(breaker_x < 1):
+                    if(x[x_pos] > particle_position_x):
+                        i = x_pos
+                        breaker_x = 1
+	    for y_pos in y_range:
+		if(breaker_y < 1):
+                    if(y[y_pos] > particle_position_y):
+                        j = len(y) - 1 - y_pos
+			breaker_y = 1
+
+	    # Computes weights, deciding 'how much' of the velocity from each node surrounding the particle should be transferred to it.
+	    w1 = 0.25
+	    w2 = 0.25
+	    w3 = 0.25
+	    w4 = 0.25
+
+	    # Computes velocity of the particle.
+	    particle_x_velocity = particle_x_velocity + w1*horVel[j,i] + w2*horVel[j-1,i] + w3*horVel[j,i-1] + w4*horVel[j-1,i-1]
+	    particle_y_velocity = particle_y_velocity + w1*verVel[j,i] + w2*verVel[j-1,i] + w3*verVel[j,i-1] + w4*verVel[j-1,i-1]
+
+	    # Advects the particle.
+	    particle_position_x = particle_position_x + particle_x_velocity*dt
+            particle_position_y = particle_position_y + particle_y_velocity*dt - particle_settlingVel*dt
+
+	    particle_position_vector[file_counter,:] = [particle_position_x,particle_position_y]
+
+	    file_counter = file_counter + 1
+
+	print particle_position_vector
+
+	for plot_count in range(0,total_files):
+	    plt.scatter(particle_position_vector[plot_count,0],particle_position_vector[plot_count,1],marker='.',color='black',s=0.5)
+	    axes = plt.gca()
+	    axes.set_xlim([0,50])
+	    axes.set_ylim([0,100])
+
+	plt.savefig(''.join([filename,'_particle','.png']))
+
+	return
 
 
-# The function integrateDomain takes the following form and plots line data from a Nek5000 run.
-# integrateDomain( filename, jump, total_timesteps, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType )
-# Inputs are as follows:
-        # filename: name that comes before the 0.f##### in the output files from Nek5000.
-        # jump: number of 0.f##### files to skip between each plot.
-        # total_timesteps: number of 0.f##### files to consider (not number of last file).
-        # elements_x: number of elements in the x-direction.
-        # elements_y: number of elements in the y -direction.
-        # gridpoints_x: number of gridpoints in the x-direction.
-        # gridpoints_y: number of gridpoints in the y-direction.
-        # x_cluster: geometric ratio used to cluster gridpoints in the x-direction.
-        # y_cluster: geometric ratio used to cluster gridpoints in the y-direction.
-        # gridType: 0 - half domain (i.e. x goes from 0-50 while y goes from 0-100 with a half-plume), 1 - full domain (i.e. domain is square).
 
-#integrateDomain( 'plume_v2_largeIni', 10, 2400, 40, 80, 50, 100 )
 
-# Combine images into video using the script make_video_from_image.sh
-#os.system('./make_video_from_image.sh')
+
+
+
+
+
+
+
 
 

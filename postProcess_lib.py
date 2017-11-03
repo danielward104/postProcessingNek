@@ -437,7 +437,7 @@ def meshInd( filename, jump, total_timesteps, elements_x, elements_y, gridpoints
 	return
 
 
-def particleAdvect( filename, jump, total_timesteps, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster ):
+def particleAdvect( filename, jump, total_timesteps, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType ):
         # Plots data from a Nek5000 run.  Inputs are as follows:
         # filename: name that comes before the 0.f##### in the output files from Nek5000.
         # jump: number of 0.f##### files to skip between each plot.
@@ -455,8 +455,8 @@ def particleAdvect( filename, jump, total_timesteps, elements_x, elements_y, gri
         total_files = total_timesteps/jump;
 
 	# Initial values of particle parameters.
-        initial_particle_x = 49.0
-        initial_particle_y = 1.0
+        initial_particle_x = 49.8
+        initial_particle_y = 0.2
         particle_x_velocity = 0.0
         particle_y_velocity = 0.0
 
@@ -465,8 +465,8 @@ def particleAdvect( filename, jump, total_timesteps, elements_x, elements_y, gri
 	fluid_density = 1000 
 	particle_density = 2000
 	particle_diameter = 0.0001
-	particle_settlingVel = 9.81*particle_diameter**2*(particle_density - fluid_density)/(18*fluid_viscosity)
-	print particle_settlingVel
+	particle_settlingVel = 0 #9.81*particle_diameter**2*(particle_density - fluid_density)/(18*fluid_viscosity)
+	print "Particle Settling Velocity: {:2d}".format(particle_settlingVel)
 
         # Initialisation of loop.
         file_counter = 1
@@ -498,8 +498,14 @@ def particleAdvect( filename, jump, total_timesteps, elements_x, elements_y, gri
 	    time_old = time
 
             # Defines size of grid.
-            [ x ] = geometricRatio(x_cluster,elements_x,gridpoints_x)
-            [ y ] = geometricRatio(y_cluster,elements_y,gridpoints_y)
+            if( gridType == 0 ):
+                [ x ] = geometricRatio(x_cluster,elements_x,gridpoints_x)
+            else:
+                [ x1 ] = geometricRatio(x_cluster,elements_x/2,gridpoints_x/2)
+                [ x2 ] = geometricRatio(1/x_cluster,elements_x/2,gridpoints_x/2)
+                x = np.concatenate([ x1[:-1], [ x+gridpoints_x/2 for x in x2 ] ])
+
+	    [ y ] = geometricRatio(y_cluster,elements_y,gridpoints_y)
 
 	    #plt.pcolor(x,y,verVel)
 	    #plt.savefig(''.join([filename,'_particle2','.png']))
@@ -534,18 +540,31 @@ def particleAdvect( filename, jump, total_timesteps, elements_x, elements_y, gri
 	    particle_position_x = particle_position_x + particle_x_velocity*dt
             particle_position_y = particle_position_y + particle_y_velocity*dt - particle_settlingVel*dt
 
+	    if(particle_position_x > gridpoints_x):
+		particle_position_x = gridpoints_x
+		particle_x_velocity = 0
+	    if(particle_position_x < 0):
+                particle_position_x = 0
+                particle_x_velocity = 0
+            if(particle_position_y > gridpoints_y):
+                particle_position_y = gridpoints_y
+                particle_y_velocity = 0
+            if(particle_position_y < 0):
+                particle_position_y = gridpoints_y
+                particle_y_velocity = 0
+
 	    particle_position_vector[file_counter,:] = [particle_position_x,particle_position_y]
 
 	    file_counter = file_counter + 1
 
 	print particle_position_vector
 
-	for plot_count in range(0,total_files):
+	for plot_count in range(0,total_files,100):
 	    plt.scatter(particle_position_vector[plot_count,0],particle_position_vector[plot_count,1],marker='.',color='black',s=0.5)
 	    axes = plt.gca()
-	    axes.set_xlim([0,50])
-	    axes.set_ylim([0,100])
-
+	    axes.set_xlim([0,gridpoints_x])
+	    axes.set_ylim([0,gridpoints_y])
+	    print "done"
 	plt.savefig(''.join([filename,'_particle','.png']))
 
 	return
@@ -553,6 +572,30 @@ def particleAdvect( filename, jump, total_timesteps, elements_x, elements_y, gri
 
 
 
+def meshPlot( elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType ):
+
+	# Defines size of grid.
+        if( gridType == 0 ):
+            [ x ] = geometricRatio(x_cluster,elements_x,gridpoints_x)
+        else:
+            [ x1 ] = geometricRatio(x_cluster,elements_x/2,gridpoints_x/2)
+            [ x2 ] = geometricRatio(1/x_cluster,elements_x/2,gridpoints_x/2)
+            x = np.concatenate([ x1[:-1], [ x+gridpoints_x/2 for x in x2 ] ])
+
+        [ y ] = geometricRatio(y_cluster,elements_y,gridpoints_y)
+
+	for i in range(0,len(x)):
+            xplot = np.zeros(len(y))
+            xplot = [q + x[i] for q in xplot]
+            plt.plot(xplot,y,color='black',linewidth=0.5)
+        for j in range(0,len(y)):
+            yplot = np.zeros(len(x))
+            yplot = [p + y[j] for p in yplot]
+            plt.plot(x,yplot,color='black',linewidth=0.5)
+
+        plt.savefig('mesh.jpg')
+
+	return
 
 
 

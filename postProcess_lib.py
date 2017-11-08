@@ -150,7 +150,7 @@ def myPcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_counte
         plt.ylabel(y_label,fontsize=40)
         plt.xticks(x_range, fontsize = 30)
         plt.yticks(y_range, fontsize = 30)
-        plt.pcolor(x,y,data,**kwargs)
+        plt.pcolormesh(x,y,data,**kwargs)
         cbar = plt.colorbar()
         cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
 
@@ -171,7 +171,7 @@ def particlePcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_
             plt.ylabel(y_label,fontsize=40)
             plt.xticks(x_range, fontsize = 30)
             plt.yticks(y_range, fontsize = 30)
-            plt.pcolor(x,y,data,**kwargs)
+            plt.pcolormesh(x,y,data,**kwargs)
             cbar = plt.colorbar()
             cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
 

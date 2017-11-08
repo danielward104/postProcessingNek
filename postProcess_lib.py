@@ -163,18 +163,24 @@ def myPcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_counte
 def particlePcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_counter,x_ppos,y_ppos,**kwargs):
         # Plots figure easily, without having to repeat everything multiple times.
 
-        plt.figure(figsize=(25, 25)) # Increases resolution.
-        plt.xlabel(x_label,fontsize=40)
-        plt.ylabel(y_label,fontsize=40)
-        plt.xticks(x_range, fontsize = 30)
-        plt.yticks(y_range, fontsize = 30)
-        plt.pcolor(x,y,data,**kwargs)
-        cbar = plt.colorbar()
-        cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
+	particlesOnly = 0
+	
+	if(particlesOnly < 1):
+	    plt.figure(figsize=(25, 25)) # Increases resolution.
+            plt.xlabel(x_label,fontsize=40)
+            plt.ylabel(y_label,fontsize=40)
+            plt.xticks(x_range, fontsize = 30)
+            plt.yticks(y_range, fontsize = 30)
+            plt.pcolor(x,y,data,**kwargs)
+            cbar = plt.colorbar()
+            cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
 
-	plt.scatter(x_ppos,y_ppos,marker='.',color='black')
+	plt.scatter(x_ppos,y_ppos,marker='.',color='black',s=20)
 
-        plt.savefig(''.join([filename,name,repr(file_counter).zfill(5),'.png']))
+	if(particlesOnly > 0):
+	    plt.axis([40,50,0,10])
+
+        plt.savefig(''.join([filename,name,repr(file_counter).zfill(5),'_particle.png']))
 
         plt.close('all')
 
@@ -184,6 +190,7 @@ def particlePcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_
 def PseudoColourPlotting( filename, start_file, jump, total_timesteps, numPlots, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType, particles ):
 	# Plots data from a Nek5000 run.  Inputs are as follows:
 	# filename: name that comes before the 0.f##### in the output files from Nek5000.
+	# start_file: file number to start at (usually leave at 1).
 	# jump: number of 0.f##### files to skip between each plot.
 	# total_timesteps: number of the last 0.f##### file to consider.
 	# numPlots: number of plots to produce (1 - temperature only, 2 - temperature and vertical velocity, 3 - temperature, vertical velocity, and magnitude of velocity).

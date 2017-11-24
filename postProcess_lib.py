@@ -142,10 +142,11 @@ def geometricRatio( r, n, Sn ):
 	return [ x ]
 
 
-def myPcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_counter,**kwargs):
+def myPcolour(x,y,data,time,x_label,y_label,x_range,y_range,filename,name,file_counter,**kwargs):
 	# Plots figure easily, without having to repeat everything multiple times.
 	
         plt.figure(figsize=(25, 25)) # Increases resolution.
+	plt.title('time = %d'%(time),fontsize=40)
         plt.xlabel(x_label,fontsize=40)
         plt.ylabel(y_label,fontsize=40)
         plt.xticks(x_range, fontsize = 30)
@@ -160,13 +161,14 @@ def myPcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_counte
 
 	return
 
-def particlePcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_counter,x_ppos,y_ppos,**kwargs):
+def particlePcolour(x,y,data,time,x_label,y_label,x_range,y_range,filename,name,file_counter,x_ppos,y_ppos,**kwargs):
         # Plots figure easily, without having to repeat everything multiple times.
 
 	particlesOnly = 0
 	
 	if(particlesOnly < 1):
 	    plt.figure(figsize=(25, 25)) # Increases resolution.
+	    plt.title('time = %s'%round(time,2),fontsize=40)
             plt.xlabel(x_label,fontsize=40)
             plt.ylabel(y_label,fontsize=40)
             plt.xticks(x_range, fontsize = 30)
@@ -175,10 +177,10 @@ def particlePcolour(x,y,data,x_label,y_label,x_range,y_range,filename,name,file_
             cbar = plt.colorbar()
             cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
 
-	plt.scatter(x_ppos,y_ppos,marker='.',color='black',s=20)
+	plt.scatter(x_ppos,y_ppos,marker='.',color='black',s=50)
 
-	if(particlesOnly > 0):
-	    plt.axis([40,50,0,10])
+	#if(particlesOnly > 0):
+	plt.axis([0,50,0,100])
 
         plt.savefig(''.join([filename,name,repr(file_counter).zfill(5),'_particle.png']))
 
@@ -205,12 +207,14 @@ def PseudoColourPlotting( filename, start_file, jump, total_timesteps, numPlots,
 	
 	total_files = total_timesteps/jump;
 
-	file_counter = 1
+	#file_counter = 1
 	
 	if (start_file == 1):
-	    range_vals = np.array(range(1,total_files))*jump
+	    range_vals = [x - (jump - 1) for x in np.array(range(1,total_files))*jump]
 	else:
-	    range_vals = np.array(range(start_file/jump,total_files))*jump
+	    range_vals = np.array(range(int(math.floor(start_file/jump)),total_files))*jump
+	    print "Make sure calculation of file numbers is correct"
+	    print range_vals
 
 	for k in range_vals:
 
@@ -225,7 +229,7 @@ def PseudoColourPlotting( filename, start_file, jump, total_timesteps, numPlots,
             sys.stdout.flush()
 
 	    # Reads data files.
-	    data,time,istep = readnek(''.join([filename,'0.f',repr(k+1).zfill(5)]))
+	    data,time,istep = readnek(''.join([filename,'0.f',repr(k).zfill(5)]))
 	    # Reshapes data onto uniform grid.
 	    [ mesh ] = reshapenek(data, elements_y, elements_x)
 	    # Consider only the necessary number of plots.
@@ -254,18 +258,18 @@ def PseudoColourPlotting( filename, start_file, jump, total_timesteps, numPlots,
 
 	    # Defines size of grid.
 	    if( gridType == 0 ):
-		[ x ] = geometricRatio(1/x_cluster,elements_x,gridpoints_x)
+		[ x ] = geometricRatio(x_cluster,elements_x,gridpoints_x)
 	    else:
-	    	[ x1 ] = geometricRatio(1/x_cluster,elements_x/2,gridpoints_x/2)
-	    	[ x2 ] = geometricRatio(x_cluster,elements_x/2,gridpoints_x/2)
+	    	[ x1 ] = geometricRatio(x_cluster,elements_x/2,gridpoints_x/2)
+	    	[ x2 ] = geometricRatio(1/x_cluster,elements_x/2,gridpoints_x/2)
 	    	x = np.concatenate([ x1[:-1], [ x+50 for x in x2 ] ])
 
 	    [ y ] = geometricRatio(y_cluster,elements_y,gridpoints_y)
 	    
 	    # Reading in particle data.
 	    if (particles == 1):
-		npart = (k+1)*4
-                pname = ''.join(['part',repr(npart+1).zfill(5),'.3D'])
+		npart = (k)*4
+                pname = ''.join(['part',repr(npart).zfill(5),'.3D'])
                 text_file = open(pname,"r")
 
                 lines = text_file.read().strip()
@@ -278,28 +282,26 @@ def PseudoColourPlotting( filename, start_file, jump, total_timesteps, numPlots,
 		if (plotNum == 0):
 		    dataPlot = temperature
 		    c_min = 0
-		    c_max = 4
+		    c_max = 0.3
 		    name = '_temp_'
 		elif (plotNum == 1):
 		    dataPlot = verVel
-                    c_min = -1
-                    c_max = 5
+                    c_min = 0
+                    c_max = 10
 		    name = '_verVel_'
 	    	elif (plotNum == 2):
                     dataPlot = magVel
                     c_min = 0
-                    c_max = 5
+                    c_max = 10
 		    name = '_magVel_'
 
 		if (particles == 0):
 		    # Plots reshaped data
-		    myPcolour(x,y,dataPlot,'Horizontal position','Vertical position',range(0,101,10),range(0,101,10),filename,name,file_counter,vmin=c_min,vmax=c_max)
+		    myPcolour(x,y,dataPlot,time,'Horizontal position','Vertical position',range(0,101,10),range(0,101,10),filename,name,file_counter,vmin=c_min,vmax=c_max)
 		elif (particles == 1):
-		    particlePcolour(x,y,dataPlot,'Horizontal position','Vertical position',range(0,101,10),range(0,101,10),filename,name,file_counter,x_pos,y_pos,vmin=c_min,vmax=c_max)
+		    particlePcolour(x,y,dataPlot,time,'Horizontal position','Vertical position',range(0,101,10),range(0,101,10),filename,name,k/jump-1,x_pos,y_pos,vmin=c_min,vmax=c_max)
 
-
-
-	    file_counter = file_counter + 1
+	    #file_counter = file_counter + 1
 
 	return
 
@@ -603,12 +605,6 @@ def meshPlot( elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_c
         plt.savefig('mesh.jpg')
 
 	return
-
-
-
-
-
-
 
 
 

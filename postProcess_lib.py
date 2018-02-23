@@ -3,199 +3,22 @@ import math
 from array import array
 import sys
 import matplotlib.pyplot as plt
-#import matplotlib.axes as ax
 # The following allows the script to work over SSH.  Check it still works when not SSH tunnelling.
 plt.switch_backend('agg')
 import os
 from tempfile import TemporaryFile
+from colorsys import hsv_to_rgb
 
-def readnek( fname ):
+# Import user-defined modules.
+import readingNek as rn
+import mappings as mp
+import plottingTools as pt
+import generalTools as tools
 
-	#--------------------------------------------
-	# Open the file
-	#--------------------------------------------
-    arr = array('L')
-    with open(fname,'rb') as f:
-	
-	#--------------------------------------------
-        # Read header of tile
-    	#--------------------------------------------
-    	header = f.readline(132)
- 	etag = f.read(4)
- 	# Precision of simulation. 
-    	wdsz = float(header[5])
-    
-    	# Element sizes
-    	lr1 = [float(filter(None,header[7:9])),float(filter(None,header[10:13])),float(filter(None,header[13:16]))]
-
-    	# Compute total number of points per element
-    	npel = int(reduce(lambda x, y: x*y, lr1))
-
-    	# Compute number of active dimensions
-    	if (lr1[2] > 1):
-    	    add_dims = 1
-    	else:
-    	    add_dims = 0
-    	ndim = 2 + add_dims
-    
-    	# Number of elements
-    	nel = float(filter(None,header[16:26]))
-    	
-    	# Number of elements in the file
-    	nelf = int(filter(None,header[27:37]))
-    	
-    	# Time
-    	time = float(filter(None,header[38:58]))
-    	
-    	# Iteration number
-    	istep = float(filter(None,header[59:68]))
-    
-    	# Get fields [XUPT]
-    	fields = header[83:]
-    	var = np.zeros(5)
-    	if (int('X' in fields) == 1):
-    	    var[0] = ndim
-    	if (int('U' in fields) == 1):
-    	    var[1] = ndim
-    	if (int('P' in fields) == 1):
-    	    var[2] = 1
-    	if (int('T' in fields) == 1):
-    	    var[3] = 1
-
-    	nfields = int(reduce(lambda x, y: x+y, var))
-    
-    	# Read element map
-	#map_proxy = f.readlines()[1:]
-    	elmap = np.fromfile(f,dtype='int32',count=nelf)  	
-	#--------------------------------------------
-        # Read data
-        #--------------------------------------------
-	data = np.zeros((nelf,npel,nfields))
-	for ivar in range(1,6):
-	    if (ivar == 1):
-		idim0 = 0
-	    else: 
-		idim0 = reduce(lambda x, y: x+y, var[0:ivar-1])
-	    for iel in elmap:
-		iter_range = [x+idim0 for x in range(1,int(var[ivar-1])+1)]
-		iter_range = [int(x) for x in iter_range]
-		for idim in iter_range:
-		    data[iel-1,:,idim-1] = np.fromfile(f,dtype='float32',count=npel) 	
-
-    return [data,time,istep]
-
-
-def reshapenek( data, nelx, nely ):
-	nel,N2,nfld = data.shape
-	N = math.sqrt(N2)
-	if (nel != nelx*nely):
-	    print 'Error: nel != nelx*nely.'
-	    sys.exit()
-	
-	#--------------------------------------------
-        # Reshape data
-        #--------------------------------------------
-
-	mesh = np.zeros((int((N-1)*nelx+1),int((N-1)*nely+1),nfld))
-
-	for ifld in range(0,nfld):
-	    # Check this mesh isn't transposed!!!
-#	    mesh = np.zeros((int((N-1)*nelx+1),int((N-1)*nely+1)))
-	    
-	    for iel in range(0,nel):
-		ielx = math.floor(iel/nely) + 1
-		iely = (iel % nely) + 1
-		
-		ii = [x+(N-1)*(ielx-1) for x in range(0,int(N))]
-		ii = [int(x) for x in ii]
-		jj = [x+(N-1)*(iely-1) for x in range(0,int(N))]
-		jj = [int(x) for x in jj]
-
-		mesh[ii[0]:(ii[7]+1),jj[0]:(jj[7]+1),ifld] = np.reshape(data[iel,:,ifld], (8,8))
-	
-	return [ mesh ]
-
-
-def geometricRatio( r, n, Sn ):
-	# Calculating the axis using a geometric ratio.  The variable r is the geometric ratio to be used, n is the number of elements and Sn is the length of the axis, clusterEdge chooses which side to cluster the gridpoints on.
-
-	# Compute first step size.
-	a = (r - 1)*Sn/(r**n - 1)
-	
-	x = None
-	geosum = 0
-	geosum_last = 0
-	
-	for i in range(0,n):
-
-	    geosum = geosum + a*r**(i)
-
-	    # Computing spacing for each element
-	    small_vector = np.linspace(geosum_last,geosum,8)
-
-	    # Concatenating vectors.
-	    if (i < n-1):
-		small_vector = small_vector[0:7] 
-	    if (i == 0):
-		x = small_vector
-	    else:
-		x = np.concatenate([x, small_vector])
-	    geosum_last = geosum
-
-	return [ x ]
-
-
-def myPcolour(x,y,data,time,x_label,y_label,x_range,y_range,filename,name,file_counter,**kwargs):
-	# Plots figure easily, without having to repeat everything multiple times.
-	
-        plt.figure(figsize=(25, 25)) # Increases resolution.
-	plt.title('time = %d'%(time),fontsize=40)
-        plt.xlabel(x_label,fontsize=40)
-        plt.ylabel(y_label,fontsize=40)
-        plt.xticks(x_range, fontsize = 30)
-        plt.yticks(y_range, fontsize = 30)
-        plt.pcolormesh(x,y,data,**kwargs)
-        cbar = plt.colorbar()
-        cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
-
-        plt.savefig(''.join([filename,name,repr(file_counter).zfill(5),'.png']))
-
-	plt.close('all')
-
-	return
-
-
-def particlePcolour(x,y,data,time,x_label,y_label,x_range,y_range,filename,name,file_counter,x_ppos,y_ppos,**kwargs):
-        # Plots figure easily, without having to repeat everything multiple times.
-
-	particlesOnly = 0
-	
-	if(particlesOnly < 1):
-	    plt.figure(figsize=(25, 25)) # Increases resolution.
-	    plt.title('time = %s'%round(time,2),fontsize=40)
-            plt.xlabel(x_label,fontsize=40)
-            plt.ylabel(y_label,fontsize=40)
-            plt.xticks(x_range, fontsize = 30)
-            plt.yticks(y_range, fontsize = 30)
-            plt.pcolormesh(x,y,data,**kwargs)
-            cbar = plt.colorbar()
-            cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
-
-	plt.scatter(x_ppos,y_ppos,marker='.',color='black',s=50)
-
-	#if(particlesOnly > 0):
-	plt.axis([30,50,0,40])
-
-        plt.savefig(''.join([filename,name,repr(file_counter).zfill(5),'_particle.png']))
-
-        plt.close('all')
-
-        return
-
-
-def PseudoColourPlotting( filename, start_file, jump, total_timesteps, numPlots, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType, particles ):
+def PseudoColourPlotting( filename, order, start_file, jump, total_timesteps, numPlots, elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType, particles ):
 	# Plots data from a Nek5000 run.  Inputs are as follows:
 	# filename: name that comes before the 0.f##### in the output files from Nek5000.
+	# Order of the polynomial used for the spectral element method.
 	# start_file: file number to start at (usually leave at 1).
 	# jump: number of 0.f##### files to skip between each plot.
 	# total_timesteps: number of the last 0.f##### file to consider.
@@ -233,9 +56,9 @@ def PseudoColourPlotting( filename, start_file, jump, total_timesteps, numPlots,
             sys.stdout.flush()
 
 	    # Reads data files.
-	    data,time,istep = readnek(''.join([filename,'0.f',repr(k).zfill(5)]))
+	    data,time,istep = rn.readnek(''.join([filename,'0.f',repr(k).zfill(5)]))
 	    # Reshapes data onto uniform grid.
-	    [ mesh ] = reshapenek(data, elements_y, elements_x)
+	    [ mesh ] = rn.reshapenek(data, elements_y, elements_x)
 	    # Consider only the necessary number of plots.
 	    if (particles == 1):
 	    	if (numPlots == 1):
@@ -243,7 +66,7 @@ def PseudoColourPlotting( filename, start_file, jump, total_timesteps, numPlots,
 	    	elif (numPlots == 2):
 		    temperature = mesh[:,:,3]
 		    verVel = mesh[:,:,1]
-	    	elif (numPlots == 3):
+	    	else:
 		    verVel = mesh[:,:,1]
 		    horVel = mesh[:,:,0]
 		    temperature = mesh[:,:,3]
@@ -254,21 +77,15 @@ def PseudoColourPlotting( filename, start_file, jump, total_timesteps, numPlots,
                 elif (numPlots == 2):
                     temperature = mesh[:,:,5]
                     verVel = mesh[:,:,3]
-                elif (numPlots == 3):
+                else:
                     verVel = mesh[:,:,3]
                     horVel = mesh[:,:,2]
                     temperature = mesh[:,:,5]
                     magVel = np.sqrt(np.square(verVel) + np.square(horVel))
 
 	    # Defines size of grid.
-	    if( gridType == 0 ):
-		[ x ] = geometricRatio(x_cluster,elements_x,gridpoints_x)
-	    else:
-	    	[ x1 ] = geometricRatio(x_cluster,elements_x/2,gridpoints_x/2)
-	    	[ x2 ] = geometricRatio(1/x_cluster,elements_x/2,gridpoints_x/2)
-	    	x = np.concatenate([ x1[:-1], [ x+50 for x in x2 ] ])
-
-	    [ y ] = geometricRatio(y_cluster,elements_y,gridpoints_y)
+	    x = mp.mesh_generation(x_cluster,elements_x,gridpoints_x,order,4,'out')
+	    y = mp.mesh_generation(y_cluster,elements_y,gridpoints_y,order,2,'out')
 	    
 	    # Reading in particle data.
 	    if (particles == 1):
@@ -284,52 +101,39 @@ def PseudoColourPlotting( filename, start_file, jump, total_timesteps, numPlots,
 
 	    for plotNum in range(0,numPlots):
 		if (plotNum == 0):
-		    dataPlot = [ t**0.5 for t in temperature ]
+		    # Plots the square root of temperature to improve the outline of the plume.
+		    dataPlot = [ abs(t)**0.5 for t in temperature ]
 		    c_min = 0
-		    c_max = 0.2
-		    name = '_temp_close_'
+		    c_max = 1
+		    name = '_temp_'
 		elif (plotNum == 1):
 		    dataPlot = verVel
                     c_min = 0
-                    c_max = 10
+                    c_max = 1
 		    name = '_verVel_'
 	    	elif (plotNum == 2):
                     dataPlot = magVel
                     c_min = 0
-                    c_max = 10
+                    c_max = 1.0
 		    name = '_magVel_'
+                elif (plotNum == 3):
+                    dataPlot = horVel
+                    c_min = -0.2
+                    c_max = 0.2
+                    name = '_horVel_'
 
 		if (particles == 0):
 		    # Plots reshaped data
-		    myPcolour(x,y,dataPlot,time,'Horizontal position','Vertical position',range(0,101,10),range(0,101,10),filename,name,k/jump,vmin=c_min,vmax=c_max)
+		    pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',range(0,11,10),range(0,11,10),filename,name,k/jump,vmin=c_min,vmax=c_max,cmap='RdBu_r')
 		elif (particles == 1):
-		    particlePcolour(x,y,dataPlot,time,'Horizontal position','Vertical position',range(0,101,10),range(0,101,10),filename,name,k/jump,x_pos,y_pos,vmin=c_min,vmax=c_max)
+		    pt.particlePcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',range(0,101,10),range(0,101,10),filename,name,k/jump,x_pos,y_pos,vmin=c_min,vmax=c_max)
 
 	return
 
 
-def myPlot(x,y,x_label,y_label,xlimits,ylimits,filename,name,file_counter,**kwargs):
-        # Plots figure easily, without having to repeat everything multiple times.
-
-        plt.figure(figsize=(30, 50)) # Increases resolution.
-        plt.xlabel(x_label,fontsize=80)
-        plt.ylabel(y_label,fontsize=80)
-	plt.xlim(xlimits)
-	plt.ylim(ylimits)
-	plt.tick_params(axis='both', which='major', labelsize=60)
-	plt.tick_params(axis='both', which='minor', labelsize=60)
-        plt.plot(x,y,**kwargs)
-
-        plt.savefig(''.join([filename,name,repr(file_counter).zfill(5),'.png']))
-
-        plt.close('all')
-
-        return
-
-
 def trapezium( points_x, points_y, data ):
 
-	# Computes the approximate two-dimesional integral of the function represented by 'data'.
+	# Computes the approximate two-dimensional integral of the function represented by 'data'.
 
 	sum_total = 0
 	x_tot = np.shape(points_x)
@@ -381,9 +185,9 @@ def integrateDomain( filename, jump, total_timesteps, elements_x, elements_y, gr
             sys.stdout.flush()
 
             # Reads data files.
-            data,time,istep = readnek(''.join([filename,'0.f',repr(k+1).zfill(5)]))
+            data,time,istep = rn.readnek(''.join([filename,'0.f',repr(k+1).zfill(5)]))
             # Reshapes data onto uniform grid.
-            [ mesh ] = reshapenek(data, elements_y, elements_x)
+            [ mesh ] = rn.reshapenek(data, elements_y, elements_x)
             verVel = mesh[:,:,1]
 	    horVel = mesh[:,:,0]
 	    magVel = np.sqrt(np.square(verVel) + np.square(horVel))
@@ -422,28 +226,88 @@ def integrateDomain( filename, jump, total_timesteps, elements_x, elements_y, gr
 
 	return
 
-
+ 
 def meshInd():
 
-	time_2040, ke_2040 = np.loadtxt("./save_turb_v1_20x40/kinetic_energy.txt", unpack = True)
-        time_3060, ke_3060 = np.loadtxt("./save_turb_v2_30x60/kinetic_energy.txt", unpack = True)
-	#time_4080, ke_4080 = np.loadtxt("./save_turb_v3_40x80/kinetic_energy.txt", unpack = True)
+	for lamturb in range(0,2):
 
-        plt.figure(figsize=(50, 30)) # Increases resolution.
-	ax = plt.axes()
-	plt.xlabel('Time',fontsize=80)
-	plt.ylabel('Kinetic Energy',fontsize=80)
-	#plt.xlim(xlimits)
-	#plt.ylim(ylimits)
-	plt.tick_params(axis='both', which='major', labelsize=60)
-	plt.tick_params(axis='both', which='minor', labelsize=60)
-	plt.plot(time_2040[2:],ke_2040[2:], label="Grid 20x40", linewidth = 5.0)
-	plt.plot(time_3060[2:],ke_3060[2:], label="Grid 30x60", linewidth = 5.0)
-	#plt.plot(time_4080[2:],ke_4080[2:], label="Grid 40x80", linewidth = 5.0)
-	ax.yaxis.get_offset_text().set_fontsize(50)
+	    if (lamturb == 0):
+    	        time_2040, ke_2040 = np.loadtxt("./save_lam_v1_20x40/kinetic_energy.txt", unpack = True)
+                time_3060, ke_3060 = np.loadtxt("./save_lam_v2_30x60/kinetic_energy.txt", unpack = True)
+	        time_4080, ke_4080 = np.loadtxt("./save_lam_v3_40x80/kinetic_energy.txt", unpack = True)
+	    elif (lamturb == 1):
+		time_2040, ke_2040 = np.loadtxt("./save_turb_v1_20x40/kinetic_energy.txt", unpack = True)
+                time_3060, ke_3060 = np.loadtxt("./save_turb_v2_30x60/kinetic_energy.txt", unpack = True)
+                time_4080, ke_4080 = np.loadtxt("./save_turb_v3_40x80/kinetic_energy.txt", unpack = True)
+
+	    # Finds time such that all simulations have been run to the same (ish) time.
+	    min_time =  min(max(time_2040),max(time_3060),max(time_4080))
+	    length_2040 = tools.find_nearest(time_2040,min_time)
+	    length_3060 = tools.find_nearest(time_3060,min_time)
+	    length_4080 = tools.find_nearest(time_4080,min_time)
+
+            plt.figure(figsize=(50, 30)) # Increases resolution.
+	    ax = plt.axes()
+	    plt.xlabel('Time',fontsize=80)
+	    plt.ylabel('Kinetic Energy',fontsize=80)
+	    plt.tick_params(axis='both', which='major', labelsize=60)
+	    plt.tick_params(axis='both', which='minor', labelsize=60)
+	    plt.plot(time_2040[2:length_2040],ke_2040[2:length_2040], label="Grid 20x40", linewidth = 5.0)
+	    plt.plot(time_3060[2:length_3060],ke_3060[2:length_3060], label="Grid 30x60", linewidth = 5.0)
+	    plt.plot(time_4080[2:length_4080],ke_4080[2:length_4080], label="Grid 40x80", linewidth = 5.0)
+	    ax.yaxis.get_offset_text().set_fontsize(50)
+	    plt.legend(fontsize=40)
+	    if (lamturb == 0):
+	        plt.savefig(''.join(['plume_v9_meshInd_keTimeCompare_laminar.png']))
+	    elif (lamturb == 1):
+		plt.savefig(''.join(['plume_v9_meshInd_keTimeCompare_turbulent.png']))
+	    plt.close('all')
+
+	    # Total kinetic energy of the system computed using the trapezium rule.
+	    tot_ke_2040 = 0
+	    tot_ke_3060 = 0
+	    tot_ke_4080 = 0
+	    for i in range(1,length_2040-1):
+	        tot_ke_2040 = tot_ke_2040 + (time_2040[i+2]-time_2040[i+1])*(ke_2040[i+1]+ke_2040[i+2])/2
+	    for i in range(1,length_3060-1):
+                tot_ke_3060 = tot_ke_3060 + (time_3060[i+2]-time_3060[i+1])*(ke_3060[i+1]+ke_3060[i+2])/2
+	    for i in range(1,length_4080-1):
+                tot_ke_4080 = tot_ke_4080 + (time_4080[i+2]-time_4080[i+1])*(ke_4080[i+1]+ke_4080[i+2])/2	
+	    elements = [800,1800,3200]
+	    total_ke = [tot_ke_2040,tot_ke_3060,tot_ke_4080]
+
+	    if (lamturb == 0):
+                lam_ke = total_ke
+            elif (lamturb == 1):
+                turb_ke = total_ke
+
+	    plt.figure(figsize=(50, 30)) # Increases resolution.
+            ax = plt.axes()
+            plt.xlabel('Number of Elements',fontsize=80)
+            plt.ylabel('Total Kinetic Energy',fontsize=80)
+            plt.tick_params(axis='both', which='major', labelsize=60)
+            plt.tick_params(axis='both', which='minor', labelsize=60)
+            plt.plot(elements,total_ke,linewidth = 5.0)
+            ax.yaxis.get_offset_text().set_fontsize(50)
+	    if (lamturb == 0):
+                plt.savefig(''.join(['plume_v9_meshInd_keElementCompare_laminar.png']))
+	    elif (lamturb == 1):
+		plt.savefig(''.join(['plume_v9_meshInd_keElementCompare_turbulent.png']))
+            plt.close('all')
+
+	plt.figure(figsize=(50, 30)) # Increases resolution.
+        ax = plt.axes()
+        plt.xlabel('Number of Elements',fontsize=80)
+        plt.ylabel('Total Kinetic Energy',fontsize=80)
+        plt.tick_params(axis='both', which='major', labelsize=60)
+        plt.tick_params(axis='both', which='minor', labelsize=60)
+        plt.plot(elements,lam_ke,label="Laminar",linewidth = 5.0)
+	plt.plot(elements,turb_ke,label="Turbulent",linewidth = 5.0)
 	plt.legend(fontsize=40)
-	plt.savefig(''.join(['plume_v9_meshInd_keTimeCompare.png']))
-	plt.close('all')
+	#ax.set_xscale('log')
+        ax.yaxis.get_offset_text().set_fontsize(50)
+        plt.savefig(''.join(['plume_v9_meshInd_keElementCompare_both.png']))
+
 
 	return
 
@@ -498,9 +362,9 @@ def particleAdvect( filename, jump, total_timesteps, elements_x, elements_y, gri
             sys.stdout.flush()
 
             # Reads data files.
-            data,time,istep = readnek(''.join([filename,'0.f',repr(k+1).zfill(5)]))
+            data,time,istep = rn.readnek(''.join([filename,'0.f',repr(k+1).zfill(5)]))
             # Reshapes data onto uniform grid.
-            [ mesh ] = reshapenek(data, elements_y, elements_x)
+            [ mesh ] = rn.reshapenek(data, elements_y, elements_x)
 	    verVel = mesh[:,:,1]
             horVel = mesh[:,:,0]
 	    # Compute timestep.
@@ -544,7 +408,7 @@ def particleAdvect( filename, jump, total_timesteps, elements_x, elements_y, gri
 	    w3 = (x[i] - xp)*(yp - y[j-1])/area
 	    w4 = (x[i] - xp)*(y[j] - yp)/area
 
-	    j = len(y) -1 - j
+	    j = len(y) - 1 - j
 
 	    # Computes velocity of the particle.
 	    particle_x_velocity = w1*horVel[j,i] + w2*horVel[j-1,i] + w3*horVel[j,i-1] + w4*horVel[j-1,i-1]
@@ -583,19 +447,13 @@ def particleAdvect( filename, jump, total_timesteps, elements_x, elements_y, gri
 	return
 
 
-def meshPlot( elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, gridType ):
+def meshPlot( elements_x, elements_y, gridpoints_x, gridpoints_y, x_cluster, y_cluster, order ):
 
 	# Plots the mesh of the simulation.
 
 	# Defines size of grid.
-        if( gridType == 0 ):
-            [ x ] = geometricRatio(x_cluster,elements_x,gridpoints_x)
-        else:
-            [ x1 ] = geometricRatio(x_cluster,elements_x/2,gridpoints_x/2)
-            [ x2 ] = geometricRatio(1/x_cluster,elements_x/2,gridpoints_x/2)
-            x = np.concatenate([ x1[:-1], [ x+gridpoints_x/2 for x in x2 ] ])
-
-        [ y ] = geometricRatio(y_cluster,elements_y,gridpoints_y)
+        x = mp.mesh_generation(x_cluster,elements_x,gridpoints_x,order,4,'out')
+        y = mp.mesh_generation(y_cluster,elements_y,gridpoints_y,order,2,'out')
 
 	for i in range(0,len(x)):
             xplot = np.zeros(len(y))
@@ -623,7 +481,7 @@ def time_finder( filename, jump, total_timesteps ):
 	    print "Iteration no.: %s" % k
 
             # Reads data files.
-            data,time,istep = readnek(''.join([filename,'0.f',repr(k+1).zfill(5)]))
+            data,time,istep = rn.readnek(''.join([filename,'0.f',repr(k+1).zfill(5)]))
 
 	    # Compute timestep.
 	    dt = time - time_old

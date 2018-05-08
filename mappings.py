@@ -94,7 +94,7 @@ def mapping( y2, y1, order ):
 
 
 # Generates nodes for the SEM.
-def SEM_nodes( domain, Nel, N, cluster_dir, cluster_val ):
+def SEM_nodes( domain_start, domain_end, Nel, N, cluster_dir, cluster_val ):
 
 	# Input parameters:
 	#domain = 10             # Size of the domain.
@@ -102,6 +102,8 @@ def SEM_nodes( domain, Nel, N, cluster_dir, cluster_val ):
 	#N = 2                   # Number of clusters.
 	#cluster_dir = 'out'     # Direction in which to cluster (out: clusters near edges).
 	#cluster_val = 0.9       # Amount to cluster elements (geometric ratio).
+
+	domain = domain_end - domain_start
 
 	domain = float(domain)
 	
@@ -136,8 +138,8 @@ def SEM_nodes( domain, Nel, N, cluster_dir, cluster_val ):
 	    xlength = x[nelx] - x[0]
 	    scale = (x1-x0)/xlength
 
-	    for e in range(1,nelx+1):
-	        x[e] = x0 + (x[e]-x0)*scale
+	    for e in range(0,nelx+1):
+	        x[e] = x0 + (x[e]-x0)*scale + domain_start
 
 	    if (ix > 0):
 		x = x[1:]
@@ -157,9 +159,9 @@ def SEM_nodes( domain, Nel, N, cluster_dir, cluster_val ):
 	return x_all	
 
 # Calculating the axis using a geometric ratio and Legendre polynomials.  The variable r is the geometric ratio to be used, n is the number of elements and Sn is the length of the axis, clusterEdge chooses which side to cluster the gridpoints on.
-def mesh_generation( r, Nel, Sn, order, N, cluster_dir ):
+def mesh_generation( r, Nel, domain_start, domain_end, order, N, cluster_dir ):
 
-	elements = SEM_nodes( Sn, Nel, N, cluster_dir, r )
+	elements = SEM_nodes( domain_start, domain_end, Nel, N, cluster_dir, r )
 
         mesh = np.zeros((order*Nel+1,1))
 	for i in range(0,Nel+1):

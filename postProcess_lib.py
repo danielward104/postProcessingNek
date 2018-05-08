@@ -47,6 +47,8 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
 
 	for k in range_vals:
 
+	    file_num = k/jump + 1
+
 	    # Outputs counter to terminal.
 	    if (start_file == 1):
 		files_remaining = final_file + 1 - k/jump
@@ -97,9 +99,9 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
                         horVel = mesh[:,:,2]
 
                 elif (numPlots == 2):
-                    verVel = mesh[:,:,3]
-                    horVel = mesh[:,:,2]
-                    temperature = mesh[:,:,5]
+                    verVel = np.transpose(mesh[:,:,4])
+                    horVel = np.transpose(mesh[:,:,3])
+                    temperature = np.transpose(mesh[:,:,7])
                     magVel = np.sqrt(np.square(verVel) + np.square(horVel))
 
 	    # Defines size of grid.
@@ -124,61 +126,64 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
 		    dataPlot = temperature #[ abs(t)**0.5 for t in temperature ]
 		    #c_min = -5
 		    #c_max = 5
-		    name = 'Temperature'
+		    name = 'temperature'
+		    pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',filename,name,file_num,cmap='RdBu_r')
 
-		    if (quiver == 1):
-			quiverPlotx = horVel
-			quiverPloty = verVel 
+#		    if (quiver == 1):
+#			quiverPlotx = horVel
+#			quiverPloty = verVel 
 
 		elif (plotNum == 1):
+
+		    # Plotting Vertical velocity
 		    dataPlot = verVel
                     c_min = -1
                     c_max = 1
 		    name = 'y-velocity'
-	    	elif (plotNum == 2):
+		    pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',filename,name,file_num,cmap='RdBu_r')
+
+		    # Plotting magnitude of velocity
                     dataPlot = magVel
                     c_min = 0
                     c_max = 1.0
-		    name = 'Velocity-magnitude'
-                elif (plotNum == 3):
+		    name = 'velocity-magnitude'
+                    pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',filename,name,file_num,cmap='RdBu_r')
+
+		    # Plotting horizontal velocity
                     dataPlot = horVel
                     c_min = -0.2
                     c_max = 0.2
                     name = 'x-velocity'
-		elif (plotNum == 4):
-		    dataPlot = pressure
-                    c_min = -0.1
-                    c_max = 0.1
-                    name = 'Pressure'
+                    pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',filename,name,file_num,cmap='RdBu_r')
 
-		zoom = 0
+#		zoom = 0
 
-		if (zoom == 1):
-		    x_start = int(2*(len(x)+1)/6)
-		    x_end = int(4*(len(x)+1)/6)
-		    y_start = int(4*(len(y)+1)/6)
-		    y_end = int(6*(len(y)+1)/6)
+#		if (zoom == 1):
+#		    x_start = int(2*(len(x)+1)/6)
+#		    x_end = int(4*(len(x)+1)/6)
+#		    y_start = int(4*(len(y)+1)/6)
+#		    y_end = int(6*(len(y)+1)/6)
+#
+#		    dataPlot = np.array(dataPlot)
+#		    dataPlot = dataPlot[y_start:y_end,x_start:x_end]
+#
+#		    x = x[x_start:x_end]
+#		    y = y[y_start:y_end]
+#		    name = 'Temperature_close'
+#
+#		    if (quiver == 1):
+#			quiverPlotx = quiverPlotx[y_start:y_end,x_start:x_end]
+#		    	quiverPloty = quiverPloty[y_start:y_end,x_start:x_end]
 
-		    dataPlot = np.array(dataPlot)
-		    dataPlot = dataPlot[y_start:y_end,x_start:x_end]
-
-		    x = x[x_start:x_end]
-		    y = y[y_start:y_end]
-		    name = 'Temperature_close'
-
-		    if (quiver == 1):
-			quiverPlotx = quiverPlotx[y_start:y_end,x_start:x_end]
-		    	quiverPloty = quiverPloty[y_start:y_end,x_start:x_end]
-
-		if (quiver == 1):
-		    pt.myPcolourQuiver(np.transpose(x),y,dataPlot,quiverPlotx,quiverPloty,time,'Horizontal position','Vertical position',filename,name,k/jump,vmin=c_min,vmax=c_max,cmap='RdBu_r')
-		else:
-		    if (particles == 0):
+#		if (quiver == 1):
+#		    pt.myPcolourQuiver(np.transpose(x),y,dataPlot,quiverPlotx,quiverPloty,time,'Horizontal position','Vertical position',filename,name,k/jump,vmin=c_min,vmax=c_max,cmap='RdBu_r')
+#		else:
+#		    if (particles == 0):
 		    	# Plots reshaped data
 #		    	pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',filename,name,k/jump,vmin=c_min,vmax=c_max,cmap='RdBu_r')
-			pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',filename,name,k/jump,cmap='RdBu_r')
-		    elif (particles == 1):
-		    	pt.myPcolour(y,np.transpose(x),dataPlot,time,'Horizontal position','Vertical position',filename,name,k/jump,vmin=c_min,vmax=c_max,cmap='RdBu_r')
+#			pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',filename,name,k/jump,cmap='RdBu_r')
+#		    elif (particles == 1):
+#		    	pt.myPcolour(y,np.transpose(x),dataPlot,time,'Horizontal position','Vertical position',filename,name,k/jump,vmin=c_min,vmax=c_max,cmap='RdBu_r')
 
 #		    pt.particlePcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',range(0,51,5),range(0,101,10),filename,name,k/jump,x_pos,y_pos,vmin=c_min,vmax=c_max,cmap='RdBu_r')
 

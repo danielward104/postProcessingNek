@@ -63,6 +63,7 @@ def readnek( fname ):
         # Read element map
         #map_proxy = f.readlines()[1:]
         elmap = np.fromfile(f,dtype='int32',count=nelf)
+
         #--------------------------------------------
         # Read data
         #--------------------------------------------
@@ -78,14 +79,48 @@ def readnek( fname ):
                 for idim in iter_range:
                     data[iel-1,:,idim-1] = np.fromfile(f,dtype='float32',count=npel)
 
-    return [data,time,istep]
+    return [data,time,istep,header,elmap]
 
 
-def reshapenek( data, nelx, nely ):
+def reshapenek3D( data, nelx, nely ,nelz ):
+        nel,N3,nfld = data.shape
+        N = round(math.pow(float(N3),1.0/3.0),0)
+
+        if (nel != nelx*nely*nelz):
+            print 'Error in reshapenek: nel != nelx*nely*nelz.'
+            sys.exit()
+
+        #--------------------------------------------
+        # Reshape data
+        #--------------------------------------------
+
+        mesh = np.zeros((int((N-1)*nelx+1),int((N-1)*nely+1),int((N-1)*nelz+1),nfld))
+
+        for ifld in range(0,nfld):
+
+            for iel in range(0,nel):
+
+		ielz = math.floor(iel/(nelx*nely)) + 1
+		iely = (math.floor(iel/nelx) % nely) + 1
+		ielx = (iel % nelx) + 1
+
+                ii = [x+(N-1)*(ielx-1) for x in range(0,int(N))]
+                ii = [int(x) for x in ii]
+                jj = [y+(N-1)*(iely-1) for y in range(0,int(N))]
+                jj = [int(y) for y in jj]
+                kk = [z+(N-1)*(ielz-1) for z in range(0,int(N))]
+                kk = [int(z) for z in kk]
+
+                mesh[ii[0]:(ii[7]+1),jj[0]:(jj[7]+1),kk[0]:(kk[7]+1),ifld] = np.reshape(data[iel,:,ifld], (8,8,8)).transpose()
+
+        return [ mesh ]
+
+
+def reshapenek2D( data, nelx, nely ):
         nel,N2,nfld = data.shape
         N = math.sqrt(N2)
         if (nel != nelx*nely):
-            print 'Error: nel != nelx*nely.'
+            print 'Error in reshapenek: nel != nelx*nely.'
             sys.exit()
 
         #--------------------------------------------

@@ -22,10 +22,14 @@ def readnek( fname ):
         wdsz = float(header[5])
 
         # Element sizes
-        lr1 = [float(filter(None,header[7:9])),float(filter(None,header[10:13])),float(filter(None,header[13:16]))]
+        lr1 = [float(header[7:9].decode("utf-8").strip()), \
+            float(header[10:13].decode("utf-8").strip()),float(header[13:16].decode("utf-8").strip())]
 
         # Compute total number of points per element
-        npel = int(reduce(lambda x, y: x*y, lr1))
+        npel = 1
+        for i in range(0,len(lr1)):
+            npel = npel*lr1[i]
+        npel = int(npel)
 
         # Compute number of active dimensions
         if (lr1[2] > 1):
@@ -35,19 +39,19 @@ def readnek( fname ):
         ndim = 2 + add_dims
 
         # Number of elements
-        nel = float(filter(None,header[16:26]))
+        nel = float(header[16:26].decode("utf-8").strip())
 
         # Number of elements in the file
-        nelf = int(filter(None,header[27:37]))
+        nelf = int(header[27:37].decode("utf-8").strip())
 
         # Time
-        time = float(filter(None,header[38:58]))
+        time = float(header[38:58].decode("utf-8").strip())
 
         # Iteration number
-        istep = float(filter(None,header[59:68]))
+        istep = float(header[59:68].decode("utf-8").strip())
 
         # Get fields [XUPT]
-        fields = header[83:]
+        fields = header[83:].decode("utf-8")
         var = np.zeros(5)
         if (int('X' in fields) == 1):
             var[0] = ndim
@@ -58,7 +62,11 @@ def readnek( fname ):
         if (int('T' in fields) == 1):
             var[3] = 1
 
-        nfields = int(reduce(lambda x, y: x+y, var))
+        # Gets number of fields
+        nfields = 0
+        for i in range(0,len(var)):
+            nfields = nfields + var[i]
+        nfields = int(nfields)
 
         # Read element map
         #map_proxy = f.readlines()[1:]
@@ -72,7 +80,9 @@ def readnek( fname ):
             if (ivar == 1):
                 idim0 = 0
             else:
-                idim0 = reduce(lambda x, y: x+y, var[0:ivar-1])
+                idim0 = 0
+                for i in range(0,ivar-1):
+                    idim0 = idim0 + var[i]
             for iel in elmap:
                 iter_range = [x+idim0 for x in range(1,int(var[ivar-1])+1)]
                 iter_range = [int(x) for x in iter_range]
@@ -87,7 +97,7 @@ def reshapenek3D( data, nelx, nely ,nelz ):
         N = round(math.pow(float(N3),1.0/3.0),0)
 
         if (nel != nelx*nely*nelz):
-            print 'Error in reshapenek: nel != nelx*nely*nelz.'
+            print('Error in reshapenek: nel != nelx*nely*nelz.')
             sys.exit()
 
         #--------------------------------------------
@@ -100,9 +110,9 @@ def reshapenek3D( data, nelx, nely ,nelz ):
 
             for iel in range(0,nel):
 
-		ielz = math.floor(iel/(nelx*nely)) + 1
-		iely = (math.floor(iel/nelx) % nely) + 1
-		ielx = (iel % nelx) + 1
+                ielz = math.floor(iel/(nelx*nely)) + 1
+                iely = (math.floor(iel/nelx) % nely) + 1
+                ielx = (iel % nelx) + 1
 
                 ii = [x+(N-1)*(ielx-1) for x in range(0,int(N))]
                 ii = [int(x) for x in ii]
@@ -111,16 +121,56 @@ def reshapenek3D( data, nelx, nely ,nelz ):
                 kk = [z+(N-1)*(ielz-1) for z in range(0,int(N))]
                 kk = [int(z) for z in kk]
 
-                mesh[ii[0]:(ii[7]+1),jj[0]:(jj[7]+1),kk[0]:(kk[7]+1),ifld] = np.reshape(data[iel,:,ifld], (8,8,8)).transpose()
+                mesh[ii[0]:(ii[7]+1),jj[0]:(jj[7]+1),kk[0]:(kk[7]+1),ifld] = \
+                        np.reshape(data[iel,:,ifld], (8,8,8)).transpose()
 
         return [ mesh ]
+
+
+def reshapenek3D_single( data, nelx, nely ,nelz ):
+        nel,N3,nfld = data.shape
+        N = round(math.pow(float(N3),1.0/3.0),0)
+
+        if (nel != nelx*nely*nelz):
+            print('Error in reshapenek: nel != nelx*nely*nelz.')
+            sys.exit()
+
+        #--------------------------------------------
+        # Reshape data
+        #--------------------------------------------
+
+        ifld = 4
+        z_slice = 4
+
+        mesh = np.zeros((int((N-1)*nelx+1),int((N-1)*nely+1),int((N-1)*nelz+1)))
+
+        for iel in range(0,nel):
+
+            ielz = math.floor(iel/(nelx*nely)) + 1
+            iely = (math.floor(iel/nelx) % nely) + 1
+            ielx = (iel % nelx) + 1
+
+            ii = [x+(N-1)*(ielx-1) for x in range(0,int(N))]
+            ii = [int(x) for x in ii]
+            jj = [y+(N-1)*(iely-1) for y in range(0,int(N))]
+            jj = [int(y) for y in jj]
+            kk = [z+(N-1)*(ielz-1) for z in range(0,int(N))]
+            kk = [int(z) for z in kk]
+
+            mesh[ii[0]:(ii[7]+1),jj[0]:(jj[7]+1),kk[0]:(kk[7]+1)] = \
+                np.reshape(data[iel,:,ifld], (8,8,8)).transpose()
+
+            mesh = mesh[:,:,z_slice]
+
+        return [ mesh ]
+
 
 
 def reshapenek2D( data, nelx, nely ):
         nel,N2,nfld = data.shape
         N = math.sqrt(N2)
         if (nel != nelx*nely):
-            print 'Error in reshapenek: nel != nelx*nely.'
+            print('Error in reshapenek: nel != nelx*nely.')
             sys.exit()
 
         #--------------------------------------------

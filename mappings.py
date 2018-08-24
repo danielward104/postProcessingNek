@@ -96,78 +96,78 @@ def mapping( y2, y1, order ):
 # Generates nodes for the SEM.
 def SEM_nodes( domain_start, domain_end, Nel, N, cluster_dir, cluster_val ):
 
-	# Input parameters:
-	#domain = 10             # Size of the domain.
-	#Nel = 52                # Number of elements.
-	#N = 2                   # Number of clusters.
-	#cluster_dir = 'out'     # Direction in which to cluster (out: clusters near edges).
-	#cluster_val = 0.9       # Amount to cluster elements (geometric ratio).
+        # Input parameters:
+        #domain = 10             # Size of the domain.
+        #Nel = 52                # Number of elements.
+        #N = 2                   # Number of clusters.
+        #cluster_dir = 'out'     # Direction in which to cluster (out: clusters near edges).
+        #cluster_val = 0.9       # Amount to cluster elements (geometric ratio).
 
-	domain = domain_end - domain_start
+        domain = domain_end - domain_start
 
-	domain = float(domain)
-	
-	if (cluster_dir == 'out'):
-	    cluster = 1/cluster_val
-	else:
-	    cluster = cluster_val
+        domain = float(domain)
+        
+        if (cluster_dir == 'out'):
+            cluster = 1/cluster_val
+        else:
+            cluster = cluster_val
 
-	for ix in range(0,N):
+        for ix in range(0,N):
 
-	    x = [0]*(Nel/N + 1)
+            x = [0]*(int(Nel/N) + 1)
 
-	    if (ix == 0):
-	        ratio = cluster
-	    elif (ix == 1):
-	        ratio = 1/cluster
-	    elif (ix == 2):
-	        ratio = cluster
-	    else:
-	        ratio = 1/cluster
+            if (ix == 0):
+                ratio = cluster
+            elif (ix == 1):
+                ratio = 1/cluster
+            elif (ix == 2):
+                ratio = cluster
+            else:
+                ratio = 1/cluster
 
-	    nelx = Nel/N
-	    x0 = ix*domain/N
-	    x1 = (ix+1)*domain/N
-	
-	    dx = 1.0
-	    x[0] = x0
-	    for e in range(1,nelx+1):
-	        x[e] = x[e-1] + dx
-	        dx = ratio*dx
+            nelx = Nel/N
+            x0 = ix*domain/N
+            x1 = (ix+1)*domain/N
+        
+            dx = 1.0
+            x[0] = x0
+            for e in range(1,int(nelx)+1):
+                x[e] = x[e-1] + dx
+                dx = ratio*dx
 
-	    xlength = x[nelx] - x[0]
-	    scale = (x1-x0)/xlength
+            xlength = x[int(nelx)] - x[0]
+            scale = (x1-x0)/xlength
 
-	    for e in range(0,nelx+1):
-	        x[e] = x0 + (x[e]-x0)*scale + domain_start
+            for e in range(0,int(nelx)+1):
+                x[e] = x0 + (x[e]-x0)*scale + domain_start
 
-	    if (ix > 0):
-		x = x[1:]
-	        x_all = x_all + x
-	    else:
-		x_all = x
-		
-	    for i in range(0,int(nelx/6)+1):
-	        fir = 6*i
-	        sec = 6*(i + 1)
-	        if  (ix > 0):
-	            fir = fir + 1
-	            sec = sec + 1
-	        if (sec > nelx):
-	            sec = nelx + 1
-	
-	return x_all	
+            if (ix > 0):
+                x = x[1:]
+                x_all = x_all + x
+            else:
+                x_all = x
+                
+            for i in range(0,int(nelx/6)+1):
+                fir = 6*i
+                sec = 6*(i + 1)
+                if  (ix > 0):
+                    fir = fir + 1
+                    sec = sec + 1
+                if (sec > nelx):
+                    sec = nelx + 1
+        
+        return x_all    
 
 # Calculating the axis using a geometric ratio and Legendre polynomials.  The variable r is the geometric ratio to be used, n is the number of elements and Sn is the length of the axis, clusterEdge chooses which side to cluster the gridpoints on.
 def mesh_generation( r, Nel, domain_start, domain_end, order, N, cluster_dir ):
 
-	elements = SEM_nodes( domain_start, domain_end, Nel, N, cluster_dir, r )
+        elements = SEM_nodes( domain_start, domain_end, Nel, N, cluster_dir, r )
 
         mesh = np.zeros((order*Nel+1,1))
-	for i in range(0,Nel+1):
-	    j = i*order
+        for i in range(0,Nel+1):
+            j = i*order
             mesh[j] = elements[i]
-	
+        
         x = mapping(mesh[0],mesh[order],order)
 
         for i in range(1,order):
@@ -180,4 +180,4 @@ def mesh_generation( r, Nel, domain_start, domain_end, order, N, cluster_dir ):
                 mesh[i-order+k] = x[k-1]
 
         return mesh
-	
+        

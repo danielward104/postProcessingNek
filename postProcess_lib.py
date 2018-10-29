@@ -8,6 +8,7 @@ plt.switch_backend('agg')
 import os
 from tempfile import TemporaryFile
 from colorsys import hsv_to_rgb
+import pickle
 
 # Import user-defined modules.
 import readingNek as rn
@@ -15,7 +16,7 @@ import mappings as mp
 import plottingTools as pt
 import generalTools as tools
 
-def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_timestep, numPlots, elements_x, elements_y, elements_z, x_start, x_end, y_start, y_end, z_slice, x_cluster, y_cluster,  particles ):
+def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_timestep, numPlots, elements_x, elements_y, elements_z, z_slice, particles ):
         # Plots data from a Nek5000 run.  Inputs are as follows:
         # filename: name that comes before the 0.f##### in the output files from Nek5000.
         # Order of the polynomial used for the spectral element method.
@@ -23,12 +24,8 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
         # jump: number of 0.f##### files to skip between each plot.
         # final_timestep: number of the last 0.f##### file to consider.
         # numPlots: number of plots to produce (1 - temperature only, 2 - temperature and vertical velocity, 3 - temperature, vertical velocity, and magnitude of velocity).
-        # elements_x: number of elements in the x-direction.
-        # elements_y: number of elements in the y -direction.
-        # gridpoints_x: number of gridpoints in the x-direction.
-        # gridpoints_y: number of gridpoints in the y-direction.
-        # x_cluster: geometric ratio used to cluster gridpoints in the x-direction.
-        # y_cluster: geometric ratio used to cluster gridpoints in the y-direction.
+        # elements_i: number of elements in the i-direction.
+        # z_slice: location of the slice through the x-direction.
         # particles: switch to plot particle paths if particles are included in the simulation.
 
         quiver = 0      
@@ -45,6 +42,30 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
             print("Make sure calculation of file numbers is correct")
             print(range_vals)
 
+        # Reading in mesh data.
+        data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f00001']))
+        [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
+
+        z = mesh[0,0,:,2]
+        z_start = z[0]
+        z_end = z[-1]
+
+        # Find the point in the mesh where z_slice lies.
+        nodes_z = elements_z*order + 1
+        z_mesh = int((nodes_z/(z_end - z_start))*(z_slice + 1))
+
+        # Defining x,y coordinates.
+        x = mesh[:,0,z_mesh,0]
+        y = mesh[0,:,z_mesh,1]
+
+        x_start = x[0]
+        x_end = x[-1]
+        y_start = y[0]
+        y_end = y[-1]
+
+        # Plotting mesh.
+        pt.meshPlot(x,y)
+
         for k in range_vals:
 
             file_num = int((k-1)/jump + 1)
@@ -60,61 +81,63 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
             sys.stdout.flush()
 
             # Reads data files.
-            data,time,istep,header,elmap = rn.readnek(''.join([filename,'0.f',repr(k).zfill(5)]))
-            # Reshapes data onto uniform grid.
+            data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f',repr(k).zfill(5)]))
 
+            # Reshapes data onto uniform grid.
             if (dimension == 2):
                 [ mesh ] = rn.reshapenek2D(data, elements_y, elements_x)
             
             elif (dimension == 3):
+
                 [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
-                mesh = mesh[:,:,4,:]
+                mesh = mesh[:,:,z_mesh,:]
                 
             # Consider only the necessary number of plots.
-            # Different numbering system for particles and no-particles.
-            if (particles == 1):
-                if (numPlots == 1):
-                    if (k == 0) or (k == 1):
-                        temperature = mesh[:,:,7]
-                    else:
-                        temperature = mesh[:,:,4]
-                        
-                    if (quiver == 1):
-                        verVel = mesh[:,:,1]
-                        horVel = mesh[:,:,0]
-                    
-                elif (numPlots == 2):
-                    if (k == 1):
-                        verVel = mesh[:,:,3]
-                        horVel = mesh[:,:,4]
-                        magVel = np.sqrt(np.square(verVel) + np.square(horVel))
-                        temperature = mesh[:,:,7]
-                    else:
-                        verVel = mesh[:,:,1]
-                        horVel = mesh[:,:,0]
-                        magVel = np.sqrt(np.square(verVel) + np.square(horVel))
-                        temperature = mesh[:,:,4]
+            if (numPlots == 1):
+                temperature = np.transpose(mesh[:,:,t_i])
 
-            elif (particles == 0):
-                if (numPlots == 1):
-                    temperature = np.transpose(mesh[:,:,7])
-                    
-                    if (quiver == 1):
-                        verVel = mesh[:,:,3]
-                        horVel = mesh[:,:,2]
+            elif (numPlots == 2):
+                temperature = np.transpose(mesh[:,:,t_i])
+                horVel = np.transpose(mesh[:,:,u_i])
+                verVel = np.transpose(mesh[:,:,v_i])
+                magVel = np.sqrt(np.square(verVel) + np.square(horVel))
 
-                elif (numPlots == 2):
-                    verVel = np.transpose(mesh[:,:,4])
-                    horVel = np.transpose(mesh[:,:,3])
-                    temperature = np.transpose(mesh[:,:,7])
-                    magVel = np.sqrt(np.square(verVel) + np.square(horVel))
-
-            # Defines size of grid.
-#           x = mp.mesh_generation(x_cluster,elements_x,x_start,x_end,order,2,'in')
-#           y = mp.mesh_generation(y_cluster,elements_y,y_start,y_end,order,2,'in')
-
-            x = np.linspace(x_start,x_end,order*elements_x+1)
-            y = np.linspace(y_start,y_end,order*elements_y+1)
+#            if (particles == 1):
+#                if (numPlots == 1):
+#                    if (k == 0) or (k == 1):
+#                        temperature = mesh[:,:,7]
+#                    else:
+#                        temperature = mesh[:,:,4]
+#                        
+#                    if (quiver == 1):
+#                        verVel = mesh[:,:,1]
+#                        horVel = mesh[:,:,0]
+#                    
+#                elif (numPlots == 2):
+#                    if (k == 1):
+#                        verVel = mesh[:,:,3]
+#                        horVel = mesh[:,:,4]
+#                        magVel = np.sqrt(np.square(verVel) + np.square(horVel))
+#                        temperature = mesh[:,:,7]
+#                    else:
+#                        verVel = mesh[:,:,1]
+#                        horVel = mesh[:,:,0]
+#                        magVel = np.sqrt(np.square(verVel) + np.square(horVel))
+#                        temperature = mesh[:,:,4]
+#
+#            elif (particles == 0):
+#                if (numPlots == 1):
+#                    temperature = np.transpose(mesh[:,:,7])
+#                    
+#                    if (quiver == 1):
+#                        verVel = mesh[:,:,3]
+#                        horVel = mesh[:,:,2]
+#
+#                elif (numPlots == 2):
+#                    verVel = np.transpose(mesh[:,:,4])
+#                    horVel = np.transpose(mesh[:,:,3])
+#                    temperature = np.transpose(mesh[:,:,7])
+#                    magVel = np.sqrt(np.square(verVel) + np.square(horVel))
 
             # Reading in particle data.
             if (particles == 1):
@@ -162,13 +185,46 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
                 
                 for plotNum in range(0,numPlots):
                     if (plotNum == 0):
+
                         dataPlot = temperature
-                        c_min = 0.0
-                        c_max = 0.2
                         name = 'temperature'
-                        pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position', \
-                                'Vertical position',filename,name,file_num,cmap='RdBu_r', \
-                                vmin=c_min,vmax=c_max)
+
+                        x_plot = x
+                        y_plot = y
+
+                        x_plot_start = x_start
+                        x_plot_end = x_end
+                        y_plot_start = y_start
+                        y_plot_end = y_end
+
+                        zoomify = 0
+
+                        if (zoomify == 1):
+                                
+                            x_i_start = 0
+                            x_i_end = len(x)
+                            y_i_start = 0
+                            y_i_end = int(len(y)/1.5)
+
+                            x_plot = x[x_i_start:x_i_end]
+                            y_plot = y[y_i_start:y_i_end]
+
+                            x_plot_start = x_plot[0]
+                            x_plot_end = x_plot[-1]
+                            y_plot_start = y_plot[0]
+                            y_plot_end = y_plot[-1]
+                                
+                            dataPlot = np.array(dataPlot)
+                            dataPlot = dataPlot[y_i_start:y_i_end,x_i_start:x_i_end]
+                        
+                            name = 'temperature_zoom'
+
+                        #c_min = 0 #1.25*0.0146
+                        #c_max = 1 #1.5*0.0146
+                        pt.myPcolour(np.transpose(x_plot),y_plot,dataPlot,time,\
+                                x_plot_start,x_plot_end,y_plot_start,y_plot_end,\
+                                'Horizontal position','Vertical position',filename,name,\
+                                file_num,cmap='RdBu_r')#,vmin=c_min,vmax=c_max)
 
 #                        pt.particlePcolour(np.transpose(x),y,dataPlot,time,'Horizontal position', \
 #                                'Vertical position',filename,name,file_num,x_pos,y_pos, \
@@ -182,61 +238,331 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
 
                         # Plotting Vertical velocity
                         dataPlot = verVel
-                        c_min = -0.15
-                        c_max = 0.25
+                        #c_min = -0.15
+                        #c_max = 0.25
                         name = 'y-velocity'
-                        pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position', \
-                                'Vertical position',filename,name,file_num,vmin=c_min, \
-                                vmax=c_max,cmap='RdBu_r')
+
+                        x_plot = x
+                        y_plot = y
+
+                        x_plot_start = x_start
+                        x_plot_end = x_end
+                        y_plot_start = y_start
+                        y_plot_end = y_end
+
+                        if (zoomify == 1):
+
+                            x_i_start = 0
+                            x_i_end = len(x)
+                            y_i_start = 0
+                            y_i_end = int(len(y)/1.5)
+
+                            x_plot = x[x_i_start:x_i_end]
+                            y_plot = y[y_i_start:y_i_end]
+
+                            x_plot_start = x_plot[0]
+                            x_plot_end = x_plot[-1]
+                            y_plot_start = y_plot[0]
+                            y_plot_end = y_plot[-1]
+
+                            dataPlot = np.array(dataPlot)
+                            dataPlot = dataPlot[y_i_start:y_i_end,x_i_start:x_i_end]
+
+                            name = 'y-velocity_zoom'
+
+
+                        pt.myPcolour(np.transpose(x_plot),y_plot,dataPlot,time,\
+                                x_plot_start,x_plot_end,y_plot_start,y_plot_end \
+                                ,'Horizontal position','Vertical position',filename,name \
+                                ,file_num,cmap='RdBu_r')#,vmin=c_min,vmax=c_max)
                         
                         # Plotting magnitude of velocity
                         dataPlot = magVel
-                        c_min = 0
-                        c_max = 0.25
+                        #c_min = 0
+                        #c_max = 1
                         name = 'velocity-magnitude'
-                        pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position', \
-                                'Vertical position',filename,name,file_num,vmin=c_min, \
-                                vmax=c_max,cmap='RdBu_r')
+
+                        if (zoomify == 1):
+                            name = 'velocity-magnitude_zoom'
+
+                            dataPlot = np.array(dataPlot)
+                            dataPlot = dataPlot[y_i_start:y_i_end,x_i_start:x_i_end]
+
+                        pt.myPcolour(np.transpose(x_plot),y_plot,dataPlot,time,\
+                                x_plot_start,x_plot_end,y_plot_start,y_plot_end \
+                                ,'Horizontal position','Vertical position',filename,name \
+                                ,file_num,cmap='RdBu_r')#,vmin=c_min,vmax=c_max)
 
                         # Plotting horizontal velocity
                         dataPlot = horVel
-                        c_min = -0.15
-                        c_max = 0.15
+                        #c_min = -0.15
+                        #c_max = 0.15
                         name = 'x-velocity'
-                        pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position', \
-                                'Vertical position',filename,name,file_num,vmin=c_min, \
-                                vmax=c_max,cmap='RdBu_r')
 
-#               zoom = 0
+                        if (zoomify == 1):
+                            name = 'x-velocity_zoom'
 
-#               if (zoom == 1):
-#                   x_start = int(2*(len(x)+1)/6)
-#                   x_end = int(4*(len(x)+1)/6)
-#                   y_start = int(4*(len(y)+1)/6)
-#                   y_end = int(6*(len(y)+1)/6)
+                            dataPlot = np.array(dataPlot)
+                            dataPlot = dataPlot[y_i_start:y_i_end,x_i_start:x_i_end]
+
+                        pt.myPcolour(np.transpose(x_plot),y_plot,dataPlot,time,\
+                                x_plot_start,x_plot_end,y_plot_start,y_plot_end \
+                                ,'Horizontal position','Vertical position',filename,name \
+                                ,file_num,cmap='RdBu_r')#,vmin=c_min,vmax=c_max)
+
+        return
+
+
+def average_field( filename, order, dimension, start_file, jump, final_timestep, elements_x, elements_y, elements_z ):
+
+        final_file = int(final_timestep/jump)
+
+        if (start_file == 1):
+            range_vals = [x - (jump - 1) for x in np.array(range(1,final_file+1))*jump]
+        else:
+            range_vals = np.array(range(int(math.floor(float(start_file)/jump)),final_file+1))*jump
+            print("Make sure calculation of file numbers is correct")
+            print(range_vals)
+
+        # Reading in mesh data.
+        data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f00001']))
+        [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
+
+        # Defining x,y,z coordinates.
+        x = mesh[:,0,0,0]
+        y = mesh[0,:,0,1]
+        z = mesh[0,0,:,2]
+        
+        x_start = x[0]
+        x_end = x[-1]
+        y_start = y[0]
+        y_end = y[-1]
+        z_start = z[0]
+        z_end = z[-1]
+
+        xlength = x.shape
+        xlength = xlength[0]
+        x00 = int((xlength - 1)/2)
+        zlength = z.shape
+        zlength = zlength[0]
+        z00 = int((zlength - 1)/2)
+        ylength = y.shape
+        ylength = ylength[0]
+
+        u_r_avg = np.zeros((ylength,x00+1))
+        u_y_avg = np.zeros((ylength,x00+1))
+        counter = 0
+
+        for k in range_vals:
+
+            file_num = int((k-1)/jump + 1)
+
+            # Outputs counter to terminal.
+            if (start_file == 1):
+                files_remaining = int(final_file - k/jump)
+            else:
+                files_remaining = int(final_file - (k-range_vals[0])/jump - start_file/jump)
+
+            sys.stdout.write("\r")
+            sys.stdout.write("Files remaining: {:2d}".format(files_remaining))
+            sys.stdout.flush()
+
+            # Reads data files.
+            data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f',repr(k).zfill(5)]))
+
+            # Reshapes data onto uniform grid.
+            if (dimension == 2):
+                [ mesh ] = rn.reshapenek2D(data, elements_y, elements_x)
+
+            elif (dimension == 3):
+                [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
+
+            u_x = np.transpose(mesh[:,:,:,u_i])
+            u_y = np.transpose(mesh[:,:,:,v_i])
+            u_z = np.transpose(mesh[:,:,:,w_i])
+
+            #u_r = np.divide(np.multiply(x,u_x) + np.multiply(y,u_y),np.sqrt(np.multiply(x,x) + np.multiply(y,y)))
+
+            xlength = x.shape
+            xlength = xlength[0]
+            x00 = int((xlength - 1)/2)
+            zlength = z.shape
+            zlength = zlength[0]
+            z00 = int((zlength - 1)/2)
+            
+            u_r_1 =                         u_x[x00,        :,z00:zlength]
+            u_r_2 = np.fliplr(             -u_x[x00,        :,0:z00+1])
+            u_r_3 = np.transpose(           u_z[x00:xlength,:,z00])
+            u_r_4 = np.transpose(np.flipud(-u_z[0:x00+1,    :,z00]))
+ 
+            u_y_1 =                        u_y[x00,        :,z00:zlength]
+            u_y_2 = np.fliplr(             u_y[x00,        :,0:z00+1])
+            u_y_3 = np.transpose(          u_y[x00:xlength,:,z00])
+            u_y_4 = np.transpose(np.flipud(u_y[0:x00+1,    :,z00]))
+
+            u_r_avg = u_r_avg + (u_r_1 + u_r_2 + u_r_3 + u_r_4)/4
+            u_y_avg = u_y_avg + (u_y_1 + u_y_2 + u_y_3 + u_y_4)/4
+            counter = counter + 1
+
+#            c_min = -0.01
+#            c_max = 0.01
 #
-#                   dataPlot = np.array(dataPlot)
-#                   dataPlot = dataPlot[y_start:y_end,x_start:x_end]
+#            name = 'u_r_1'
+#            pt.myPcolour(np.transpose(x[x00:xlength]),y,u_r_1,time,\
+#                    x[x00],x[-1],y[0],y[-1],\
+#                    'Horizontal position','Vertical position',filename,name,\
+#                    file_num,cmap='RdBu_r',vmin=c_min,vmax=c_max)
 #
-#                   x = x[x_start:x_end]
-#                   y = y[y_start:y_end]
-#                   name = 'Temperature_close'
+#            name = 'u_r_2'
+#            pt.myPcolour(np.transpose(x[x00:xlength]),y,u_r_2,time,\
+#                    x[x00],x[-1],y[0],y[-1],\
+#                    'Horizontal position','Vertical position',filename,name,\
+#                    file_num,cmap='RdBu_r',vmin=c_min,vmax=c_max)
 #
-#                   if (quiver == 1):
-#                       quiverPlotx = quiverPlotx[y_start:y_end,x_start:x_end]
-#                       quiverPloty = quiverPloty[y_start:y_end,x_start:x_end]
+#            name = 'u_r_3'
+#            pt.myPcolour(np.transpose(x[x00:xlength]),y,u_r_3,time,\
+#                    x[x00],x[-1],y[0],y[-1],\
+#                    'Horizontal position','Vertical position',filename,name,\
+#                    file_num,cmap='RdBu_r',vmin=c_min,vmax=c_max)
+#
+#            name = 'u_r_4'
+#            pt.myPcolour(np.transpose(x[x00:xlength]),y,u_r_4,time,\
+#                    x[x00],x[-1],y[0],y[-1],\
+#                    'Horizontal position','Vertical position',filename,name,\
+#                    file_num,cmap='RdBu_r',vmin=c_min,vmax=c_max)
+#
+#            name = 'u_r_avg'
+#            pt.myPcolour(np.transpose(x[x00:xlength]),y,u_r_avg,time,\
+#                    x[x00],x[-1],y[0],y[-1],\
+#                    'Horizontal position','Vertical position',filename,name,\
+#                    file_num,cmap='RdBu_r',vmin=c_min,vmax=c_max)
 
-#               if (quiver == 1):
-#                   pt.myPcolourQuiver(np.transpose(x),y,dataPlot,quiverPlotx,quiverPloty,time,'Horizontal position','Vertical position',filename,name,k/jump,vmin=c_min,vmax=c_max,cmap='RdBu_r')
-#               else:
-#                   if (particles == 0):
-                        # Plots reshaped data
-#                       pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',filename,name,k/jump,vmin=c_min,vmax=c_max,cmap='RdBu_r')
-#                       pt.myPcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',filename,name,k/jump,cmap='RdBu_r')
-#                   elif (particles == 1):
-#                       pt.myPcolour(y,np.transpose(x),dataPlot,time,'Horizontal position','Vertical position',filename,name,k/jump,vmin=c_min,vmax=c_max,cmap='RdBu_r')
 
-#                   pt.particlePcolour(np.transpose(x),y,dataPlot,time,'Horizontal position','Vertical position',range(0,51,5),range(0,101,10),filename,name,k/jump,x_pos,y_pos,vmin=c_min,vmax=c_max,cmap='RdBu_r')
+        u_r_avg = u_r_avg/counter
+        u_y_avg = u_y_avg/counter
+        c_min = -0.01
+        c_max = 0.01
+
+        name = 'u_r_avg'
+        pt.myPcolour(np.transpose(x[x00:xlength]),y,u_r_avg,time,\
+                x[x00],x[-1],y[0],y[-1],\
+                'Horizontal position','Vertical position',filename,name,\
+                file_num,cmap='RdBu_r',vmin=c_min,vmax=c_max)
+
+        
+        name = 'u_y_avg'
+        pt.myPcolour(np.transpose(x[x00:xlength]),y,u_y_avg,time,\
+                x[x00],x[-1],y[0],y[-1],\
+                'Horizontal position','Vertical position',filename,name,\
+                file_num,cmap='RdBu_r')#,vmin=c_min,vmax=c_max)
+
+        f = open('avg_r_vel.file','wb')
+        pickle.dump(u_r_avg,f)
+        f.close()
+
+        f = open('avg_y_vel.file','wb')
+        pickle.dump(u_r_avg,f)
+        f.close()
+
+
+        return
+
+def TKE( filename, order, dimension, start_file, jump, final_timestep, elements_x, elements_y, elements_z ):
+
+        final_file = int(final_timestep/jump)
+
+        u_r_avg = pickle.load(open('avg_r_vel.file','rb'))
+        u_y_avg = pickle.load(open('avg_y_vel.file','rb'))
+
+        if (start_file == 1):
+            range_vals = [x - (jump - 1) for x in np.array(range(1,final_file+1))*jump]
+        else:
+            range_vals = np.array(range(int(math.floor(float(start_file)/jump)),final_file+1))*jump
+            print("Make sure calculation of file numbers is correct")
+            print(range_vals)
+
+        # Reading in mesh data.
+        data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f00001']))
+        [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
+
+        # Defining x,y,z coordinates.
+        x = mesh[:,0,0,0]
+        y = mesh[0,:,0,1]
+        z = mesh[0,0,:,2]
+        
+        x_start = x[0]
+        x_end = x[-1]
+        y_start = y[0]
+        y_end = y[-1]
+        z_start = z[0]
+        z_end = z[-1]
+
+        xlength = x.shape
+        xlength = xlength[0]
+        x00 = int((xlength - 1)/2)
+        zlength = z.shape
+        zlength = zlength[0]
+        z00 = int((zlength - 1)/2)
+        ylength = y.shape
+        ylength = ylength[0]
+
+        u_r_avg = np.zeros((ylength,x00+1))
+        counter = 0
+
+        for k in range_vals:
+
+            file_num = int((k-1)/jump + 1)
+
+            # Outputs counter to terminal.
+            if (start_file == 1):
+                files_remaining = int(final_file - k/jump)
+            else:
+                files_remaining = int(final_file - (k-range_vals[0])/jump - start_file/jump)
+
+            sys.stdout.write("\r")
+            sys.stdout.write("Files remaining: {:2d}".format(files_remaining))
+            sys.stdout.flush()
+
+            # Reads data files.
+            data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f',repr(k).zfill(5)]))
+
+            # Reshapes data onto uniform grid.
+            if (dimension == 2):
+                [ mesh ] = rn.reshapenek2D(data, elements_y, elements_x)
+
+            elif (dimension == 3):
+                [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
+            
+
+            u_x = np.transpose(mesh[:,:,:,u_i])
+            u_y = np.transpose(mesh[:,:,:,v_i])
+            u_z = np.transpose(mesh[:,:,:,w_i])
+
+            xlength = x.shape
+            xlength = xlength[0]
+            x00 = int((xlength - 1)/2)
+            zlength = z.shape
+            zlength = zlength[0]
+            z00 = int((zlength - 1)/2)
+            
+            u_r_1 =                         u_x[x00,        :,z00:zlength]
+            u_r_2 = np.fliplr(             -u_x[x00,        :,0:z00+1])
+            u_r_3 = np.transpose(           u_z[x00:xlength,:,z00])
+            u_r_4 = np.transpose(np.flipud(-u_z[0:x00+1,    :,z00]))
+ 
+            u_y_1 =                        u_y[x00,        :,z00:zlength]
+            u_y_2 = np.fliplr(             u_y[x00,        :,0:z00+1])
+            u_y_3 = np.transpose(          u_y[x00:xlength,:,z00])
+            u_y_4 = np.transpose(np.flipud(u_y[0:x00+1,    :,z00]))
+            
+            u_r_prime = abs(u_r_avg - u_r_1)
+            u_y_prime = abs(u_y_avg - u_y_1)
+
+            k = 0.5*(np.square(u_r_prime) + np.square(u_y_prime))
+            k = trapezium_2D( x[x00:xlength], y, k )
+
+            
+        
 
         return
 
@@ -366,10 +692,10 @@ def integrateDomain( filename, order, dimension, jump, final_timestep, elements_
 
                 [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
                 
-                verVel = mesh[:,:,:,4]
-                horVel = mesh[:,:,:,3]
+                verVel = mesh[:,:,4,4]
+                horVel = mesh[:,:,4,3]
                 magVel = np.sqrt(np.square(verVel) + np.square(horVel))
-                temperature = mesh[:,:,:,7]
+                temperature = mesh[:,:,4,7]
                 temperature = temperature + 273.15
                 
                 z = np.linspace(z_start,z_end,order*elements_z+1)
@@ -383,12 +709,12 @@ def integrateDomain( filename, order, dimension, jump, final_timestep, elements_
             
             buoyancy = [g*(p-ambientDensity)/p for p in density]
 
-            if (dimension == 2):
-                energy_at_time = trapezium_2D(x,y,energy)
-                buoyancy_total = trapezium_2D(x,y,np.array(buoyancy))
-                avgVel = trapezium_2D(x,y,magVel)
+            if (dimension == 3):
+                energy_at_time = trapezium_2D(y,x,energy)
+                buoyancy_total = trapezium_2D(y,x,np.array(buoyancy))
+                avgVel = trapezium_2D(y,x,magVel)
 
-            elif (dimension == 3):
+            elif (dimension == 2):
                 energy_at_time = trapezium_3D(x,y,z,energy)
                 buoyancy_total = trapezium_3D(x,y,z,np.array(buoyancy))
                 avgVel = trapezium_3D(x,y,z,magVel)
@@ -406,7 +732,7 @@ def integrateDomain( filename, order, dimension, jump, final_timestep, elements_
         return
 
 
-def integratePlume( filename, order, dimension, jump, final_timestep, elements_x, elements_y, elements_z, x_start, x_end, y_start, y_end, z_start, z_end, x_cluster, y_cluster, particles ):
+def integratePlume( filename, order, tol, dimension, jump, final_timestep, elements_x, elements_y, elements_z, z_slice, umbrella_cutoff ):
 
         # Plots line data from a Nek5000 run.  Inputs are as follows:
         # filename: name that comes before the 0.f##### in the output files from Nek5000.
@@ -426,7 +752,7 @@ def integratePlume( filename, order, dimension, jump, final_timestep, elements_x
         g = 9.81
         expCoeff = 0.0002
 
-        range_vals = np.array(range(0,final_file+1))*jump
+        range_vals = np.array(range(int(3*final_file/4),final_file))*jump
 
         buoyancy_flux = np.zeros(final_file+1)
         time_vec = np.zeros(final_file+1)
@@ -436,7 +762,32 @@ def integratePlume( filename, order, dimension, jump, final_timestep, elements_x
 
         temperature_avg = np.zeros((elements_x*order+1,elements_y*order+1,elements_z*order+1))
 
-        range_vals = [0,1523] 
+
+
+        # Reading in mesh data.
+        data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f00001']))
+        [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
+
+        z = mesh[0,0,:,2]
+        z_start = z[0]
+        z_end = z[-1]
+
+        # Find the point in the mesh where z_slice lies.
+        nodes_z = elements_z*order + 1
+        z_mesh = int((nodes_z/(z_end - z_start))*(z_slice + 1))
+
+        # Defining x,y coordinates.
+        x = mesh[:,0,z_mesh,0]
+        y = mesh[0,:,z_mesh,1]
+
+        x_start = x[0]
+        x_end = x[-1]
+        y_start = y[0]
+        y_end = y[-1]
+
+        virtual_source = []
+
+        counter = 0
 
         for k in range_vals:
 
@@ -449,148 +800,205 @@ def integratePlume( filename, order, dimension, jump, final_timestep, elements_x
             sys.stdout.flush()
 
             # Reads data files.
-            data,time,istep,header,elmap = rn.readnek(''.join([filename,'0.f',repr(k+1).zfill(5)]))
+            data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f',repr(k+1).zfill(5)]))
 
             if (dimension == 2):
                 [ mesh ] = rn.reshapenek2D(data, elements_y, elements_x)
-                verVel = mesh[:,:,3]
-                horVel = mesh[:,:,2]
-                magVel = np.sqrt(np.square(verVel) + np.square(horVel))
-                temperature = mesh[:,:,5]
-                temperature = temperature #+ 273.15
 
             elif (dimension == 3):
                 [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
-                verVel = mesh[:,:,4,4]
-                horVel = mesh[:,:,4,3]
-                magVel = np.sqrt(np.square(verVel) + np.square(horVel))
-                temperature = mesh[:,:,4,7]
-                temperature = temperature #+ 273.15
+                mesh = mesh[:,:,z_mesh,:]
                 
-                z = np.linspace(z_start,z_end,order*elements_z+1)
-
-            # Defines size of grid.
-            x = mp.mesh_generation(x_cluster,elements_x,x_start,x_end,order,2,'in')
-            y = mp.mesh_generation(y_cluster,elements_y,y_start,y_end,order,2,'in')
-
-#            x = np.linspace(x_start,x_end,order*elements_x+1)
-#            y = np.linspace(y_start,y_end,order*elements_y+1)
-
+            temperature = mesh[:,:,t_i]
+            horVel = mesh[:,:,u_i]
+#            verVel = np.transpose(mesh[:,:,v_i])
+#            magVel = np.sqrt(np.square(verVel) + np.square(horVel))
 
             # Detecting plume margins.
-
-#           temp_pert_MAX = np.max(temperature)
-#           magVel_pert_MIN = np.min(magVel)
 
             plume_pos_x = []
             plume_pos_i = []
             plume_pos_y = []
 
-#           plume_outline_x_high = []
-            plume_outline_x = []
-            plume_outline_y = []
+            plume_outline_x_max = []
+            plume_outline_y_max = []
+            plume_outline_x_min = []
+            plume_outline_y_min = []
 
-            buoyancy_flux = np.zeros(elements_y*order+1)
-            y_plot = np.zeros(elements_y*order+1)
+#            buoyancy_flux = np.zeros(elements_y*order+1)
+#            y_plot = np.zeros(elements_y*order+1)
 
-            epsilon = 0.2
-            stratify = 7
-
-            for j in range(0,elements_y*order+1):
-#                temp_pert_MIN = y[j]/stratify  #np.min(temperature[:,j])
-                temp_ambient = y[j]/stratify
-                for i in range(0,elements_x*order+1):
-                    #print(temperature[i,j],temp_ambient)
-                    #if (abs(temperature[i,j]) > temp_ambient ):
-                    if (magVel[i,j] > 0.05):
+#            for j in range(0,elements_y*order+1):
+#                for i in range(int((elements_x*order+1)/2),elements_x*order+1):
+#                    if (horVel[i,j] > tol):
 #                        plume_pos_x.append(x[i])
 #                        plume_pos_i.append(i)
 #                        plume_pos_y.append(y[j])
 #
+ #               for i in range(0,int((elements_x*order+1)/2)):
+#                    if (horVel[i,j] < -tol):
+#                        plume_pos_x.append(x[i])
+#                        plume_pos_i.append(i)
+#                        plume_pos_y.append(y[j])
+
 #                if not plume_pos_x:
 #                    pass
 #                else:
-#
-#                    max_x = max(plume_pos_x)
-#                    min_x = min(plume_pos_x)
-#                    max_i = max(plume_pos_i)
-#                    min_i = min(plume_pos_i)
-#
+
+ #                   max_x = max(plume_pos_x)
+ #                   min_x = min(plume_pos_x)
+ #                   max_i = max(plume_pos_i)
+ #                   min_i = min(plume_pos_i)
+
 #                    plume_outline_x.append(max_x)
 #                    plume_outline_x.append(min_x)
 #                    plume_outline_y.append(y[j])
 #                    plume_outline_y.append(y[j])
-#
-#                    buoyancy_flux[j] = trapezium_1D(x[min_i:max_i],temperature[min_i:max_i,j])
-#                    y_plot[j] = y[j]
-#        
-#                plume_pos_x = []
-#                plume_pos_y = []
 
+ #                   buoyancy_flux[j] = trapezium_1D(x[min_i:max_i],temperature[min_i:max_i,j])
+ #                   y_plot[j] = y[j]
+
+
+#            plt.figure(figsize=(25,1.5*25))
+#            plt.scatter(plume_pos_x,plume_pos_y)
+#            axes = plt.gca()
+#            axes.set_xlim([x_start,x_end])
+#            axes.set_ylim([y_start,y_end])
+#            plt.xticks(fontsize = 30)
+#            plt.yticks(fontsize = 30)
+#            plt.savefig(''.join([filename,'_',repr(file_num).zfill(5),'_filled.png']),bbox_inches='tight')
+#            plt.close('all')
+
+
+
+            for i in range(0,int((elements_x*order+1)/2 - 1)):
+                plume_pos_x = []
+                plume_pos_y = []
+                for j in range(1,elements_y*order):
+                    if (horVel[i,j] < -tol):
                         plume_pos_x.append(x[i])
+                        plume_pos_i.append(i)
                         plume_pos_y.append(y[j])
 
-            plt.scatter(plume_pos_x,plume_pos_y)
+                if not plume_pos_x:
+                    pass
+                else:
+                    plume_outline_y_max.append(max(plume_pos_y))
+                    plume_outline_y_min.append(min(plume_pos_y))
+                    plume_outline_x_max.append(x[i])
+                    plume_outline_x_min.append(x[i])
+
+
+
+            for i in range(int((elements_x*order+1)/2 + 1),elements_x*order+1):
+                plume_pos_x = []
+                plume_pos_y = []
+                for j in range(1,elements_y*order):
+                    if (horVel[i,j] > tol):
+                        plume_pos_x.append(x[i])
+                        plume_pos_i.append(i)
+                        plume_pos_y.append(y[j])
+
+                if not plume_pos_x:
+                    pass
+                else:
+                    plume_outline_y_max.append(max(plume_pos_y))
+                    plume_outline_y_min.append(min(plume_pos_y))
+                    plume_outline_x_max.append(x[i])
+                    plume_outline_x_min.append(x[i])
+
+            plt.figure(figsize=(25,1.5*25))
+            plt.plot(plume_outline_x_min,plume_outline_y_min)
+            plt.plot(plume_outline_x_max,plume_outline_y_max)
             axes = plt.gca()
             axes.set_xlim([x_start,x_end])
             axes.set_ylim([y_start,y_end])
-            plt.savefig(''.join([filename,'_',repr(file_num).zfill(5),'_outline.png']))
+            plt.xticks(fontsize = 30)
+            plt.yticks(fontsize = 30)
+            plt.savefig(''.join([filename,'_',repr(file_num).zfill(5),'_outline.png']),bbox_inches='tight')
             plt.close('all')
 
-#           dataPlot = np.transpose(magVel)
-#           c_min = 0.0
-#           c_max = 0.25
-#            name = 'magVel-outline'
-#            pt.particlePcolour(np.transpose(x),y,dataPlot,time,'Horizontal position', \
-#                  'Vertical position',filename,name,file_num,plume_pos_x,plume_pos_y,\
-#                       vmin=c_min,vmax=c_max,cmap='RdBu_r')
 
-#           pt.particleOnlyPlot(x,y,'Horizontal position','Vertical position',\
-#                                        file_num,plume_outline_x,plume_outline_y)
 
+            # Removes elements that lie above y = 0.7 or outside -0.25 < x < 0.25.
+
+            for xi in sorted(range(0,len(plume_outline_y_min)),reverse=True):
+                if (plume_outline_y_min[xi] > umbrella_cutoff) or (plume_outline_x_min[xi] < -0.25) or (plume_outline_x_min[xi] > 0.25):
+                    del plume_outline_y_min[xi]
+                    del plume_outline_x_min[xi]
+
+            # Computing virtual origin.
+
+            keep_x = []
+            keep_y = []
+
+           # Finds x value at base of plume. 
+
+#            print(' ')
+            min_idx = plume_outline_y_min.index(min(plume_outline_y_min))
+
+#            print(plume_outline_x_min)
+#            print(plume_outline_y_min)
+
+            low_x = plume_outline_x_min[min_idx]
+
+#            for xi in range(0,len(plume_outline_y_min[0:])):
+#                if (plume_outline_y_min[xi] < 0.005):
+#                    keep_x.append(plume_outline_x_min[xi])
+#                    keep_y.append(plume_outline_y_min[xi])
+            
+#            low_x = keep_x[0]
+
+            # Computes gradient of edge of plume.
+            grad1 = (plume_outline_y_min[0] - 0)/(plume_outline_x_min[0] - low_x)
+
+            virtual_source.append(-grad1*low_x)
+
+            # Illustrates how virtual source is found.
+            plt.plot(plume_outline_x_min,plume_outline_y_min)
+            plt.scatter(0,virtual_source[counter])
+            plt.scatter(keep_x,keep_y)
+            plt.scatter(low_x,0)
+            plt.scatter(plume_outline_x_min[0],plume_outline_y_min[0])
+            plt.savefig(''.join([filename,'_',repr(file_num).zfill(5),'_outline2.png']),bbox_inches='tight')
+            plt.close('all')
+           
+            counter = counter + 1
 
             # Removing zero elements from both buoyancy_flux and y_plot.
 #            for k in range(0,elements_y*order+1):
 #
- ##               addition = elements_y*order+1 - len(buoyancy_flux)
+#                addition = elements_y*order+1 - len(buoyancy_flux)
 #
 #                if (addition > 0):
 #                    kk = k - addition
 #                else:
- #                   kk = k
+#                    kk = k
 #
-##                if (buoyancy_flux[kk] == 0):
-#                    buoyancy_flux = np.delete(buoyancy_flux,kk)
+#                if (buoyancy_flux[kk] == 0):
+##                    buoyancy_flux = np.delete(buoyancy_flux,kk)
 #                    y_plot = np.delete(y_plot,kk)
 #
 #            # Plotting.
-#            plt.plot(buoyancy_flux,y_plot)
-#            plt.title('time = %d'%round(time,3))
-#
+ #           plt.plot(buoyancy_flux,y_plot)
+ #           plt.title('time = %d'%round(time,3))
+##
 #            axes = plt.gca()
 #            axes.set_ylim([min(y),max(y)])
 #
- #           plt.savefig(''.join([filename,'_',repr(file_num).zfill(5),'_buoyancy.png']))
+#            plt.savefig(''.join([filename,'_',repr(file_num).zfill(5),'_buoyancy.png']))
 #
 #            plt.close('all')
 
-#           dataPlot = np.transpose(magVel)
-#            c_min = 0.0
-#            c_max = 0.25
-#            name = 'magVel-outline'
-#            pt.particlePcolour(np.transpose(x),y,dataPlot,time,'Horizontal position', \
-#                  'Vertical position',filename,name,file_num,plume_pos_x,plume_pos_y,\
-#                        vmin=c_min,vmax=c_max,cmap='RdBu_r')
 
+        for jj in sorted(range(0,len(virtual_source)),reverse=True):
+            if (math.isinf(virtual_source[jj]) == 1):
+                del virtual_source[jj]
 
-#           plt.scatter(plume_pos_x,plume_pos_y,marker='.',color='black',s=1)
-#           axes = plt.gca()
-#                   axes.set_xlim([min(x),max(x)])
-#            axes.set_ylim([min(y),max(y)])
-#           plt.savefig(''.join(['outline_',repr(file_num).zfill(5),'.png']), \
-#                               bbox_inches='tight')
+        virtual_origin = sum(virtual_source)/len(virtual_source)
 
-#            plt.close('all')
+        print(' ')
+        print(virtual_origin) 
 
         return
 
@@ -649,34 +1057,31 @@ def plotparticlesonly( order, start_file, jump, final_timestep, elements_x, elem
  
 def meshInd():
 
-        # Calling in kinetic energy data.
-        LES_time_2010, LES_ke_2010 = np.loadtxt("./LES_20x10x05/kinetic_energy.txt", unpack = True)
-        LES_time_4020, LES_ke_4020 = np.loadtxt("./LES_40x20x10/kinetic_energy.txt", unpack = True)
-        LES_time_8040, LES_ke_8040 = np.loadtxt("./LES_80x40x20/kinetic_energy.txt", unpack = True)
-        DNS_time_8040, DNS_ke_8040 = np.loadtxt("./DNS_80x40x20/kinetic_energy.txt", unpack = True)
-        DNS_time_2010, DNS_ke_2010 = np.loadtxt("./DNS_20x10x05/kinetic_energy.txt", unpack = True)
+        time_2010, ke_2010 = np.loadtxt("./LES_20x10x05/kinetic_energy.txt", unpack = True)
+        time_4020, ke_4020 = np.loadtxt("./LES_40x20x10/kinetic_energy.txt", unpack = True)
+        time_8040, ke_8040 = np.loadtxt("./LES_80x40x20/kinetic_energy.txt", unpack = True)
+#        time_12060, ke_12060 = np.loadtxt("./save_v3_120x60/kinetic_energy.txt", unpack = True)
+#        time_16080, ke_16080 = np.loadtxt("./save_v4_160x80/kinetic_energy.txt", unpack = True)
 
-        # Calling in buoyancy data.
-        LES_time_2010, LES_buoy_2010 = np.loadtxt("./LES_20x10x05/buoyancy.txt", unpack = True)
-        LES_time_4020, LES_buoy_4020 = np.loadtxt("./LES_40x20x10/buoyancy.txt", unpack = True)
-        LES_time_8040, LES_buoy_8040 = np.loadtxt("./LES_80x40x20/buoyancy.txt", unpack = True)
-        DNS_time_8040, DNS_buoy_8040 = np.loadtxt("./DNS_80x40x20/buoyancy.txt", unpack = True)
-        DNS_time_2010, DNS_buoy_2010 = np.loadtxt("./DNS_20x10x05/buoyancy.txt", unpack = True)
+        time_2010, buoy_2010 = np.loadtxt("./LES_20x10x05/buoyancy.txt", unpack = True)
+        time_4020, buoy_4020 = np.loadtxt("./LES_40x20x10/buoyancy.txt", unpack = True)
+        time_8040, buoy_8040 = np.loadtxt("./LES_80x40x20/buoyancy.txt", unpack = True)
+#        time_12060, buoy_12060 = np.loadtxt("./save_v3_120x60/buoyancy.txt", unpack = True)
+#        time_16080, buoy_16080 = np.loadtxt("./save_v4_160x80/buoyancy.txt", unpack = True)
 
-        # Calling in average velocity data.
-        LES_time_2010, LES_avgVel_2010 = np.loadtxt("./LES_20x10x05/avgVels.txt", unpack = True)
-        LES_time_4020, LES_avgVel_4020 = np.loadtxt("./LES_40x20x10/avgVels.txt", unpack = True)
-        LES_time_8040, LES_avgVel_8040 = np.loadtxt("./LES_80x40x20/avgVels.txt", unpack = True)
-        DNS_time_8040, DNS_avgVel_8040 = np.loadtxt("./DNS_80x40x20/avgVels.txt", unpack = True)
-        DNS_time_2010, DNS_avgVel_2010 = np.loadtxt("./DNS_20x10x05/avgVels.txt", unpack = True)
+        time_2010, avgVel_2010 = np.loadtxt("./LES_20x10x05/avgVels.txt", unpack = True)
+        time_4020, avgVel_4020 = np.loadtxt("./LES_40x20x10/avgVels.txt", unpack = True)
+        time_8040, avgVel_8040 = np.loadtxt("./LES_80x40x20/avgVels.txt", unpack = True)
+#        time_12060, avgVel_12060 = np.loadtxt("./save_v3_120x60/avgVels.txt", unpack = True)
+#        time_16080, avgVel_16080 = np.loadtxt("./save_v4_160x80/avgVels.txt", unpack = True)
 
         # Finds time such that all simulations have been run to the same (ish) time.
-        min_time =  min(max(LES_time_2010),max(LES_time_4020),max(LES_time_8040),max(DNS_time_8040))
-        LES_length_2010 = tools.find_nearest(LES_time_2010,min_time)
-        LES_length_4020 = tools.find_nearest(LES_time_4020,min_time)
-        LES_length_8040 = tools.find_nearest(LES_time_8040,min_time)
-        DNS_length_8040 = tools.find_nearest(DNS_time_8040,min_time)
-        DNS_length_2010 = tools.find_nearest(DNS_time_2010,min_time)
+        min_time =  min(max(time_2010),max(time_4020),max(time_8040))#,max(time_12060),max(time_16080))
+        length_2010 = tools.find_nearest(time_2010,min_time)
+        length_4020 = tools.find_nearest(time_4020,min_time)
+        length_8040 = tools.find_nearest(time_8040,min_time)
+#        length_12060 = tools.find_nearest(time_12060,min_time)
+#        length_16080 = tools.find_nearest(time_16080,min_time)
 
         # Plots kinetic energy vs. time.
         plt.figure(figsize=(50, 30)) # Increases resolution.
@@ -685,101 +1090,52 @@ def meshInd():
         plt.ylabel('Kinetic Energy',fontsize=80)
         plt.tick_params(axis='both', which='major', labelsize=60)
         plt.tick_params(axis='both', which='minor', labelsize=60)
-        plt.plot(DNS_time_2010[2:DNS_length_2010],DNS_ke_2010[2:DNS_length_2010], \
-                label="DNS_20x10x05", linewidth = 5.0)
-        plt.plot(LES_time_2010[2:LES_length_2010],LES_ke_2010[2:LES_length_2010], \
-                label="LES_20x10x05", linewidth = 5.0)
-        plt.plot(LES_time_4020[2:LES_length_4020],LES_ke_4020[2:LES_length_4020], \
-                label="LES_40x20x10", linewidth = 5.0)
-        plt.plot(DNS_time_8040[2:DNS_length_8040],DNS_ke_8040[2:DNS_length_8040], \
-                label="DNS_80x40x20", linewidth = 5.0)
-        plt.plot(LES_time_8040[2:LES_length_8040],LES_ke_8040[2:LES_length_8040], \
-                label="LES_80x40x20", linewidth = 5.0)
+        plt.plot(time_2010[2:length_2010],ke_2010[2:length_2010], label="Grid 20x10", linewidth = 5.0)
+        plt.plot(time_4020[2:length_4020],ke_4020[2:length_4020], label="Grid 40x20", linewidth = 5.0)
+        plt.plot(time_8040[2:length_8040],ke_8040[2:length_8040], label="Grid 80x40", linewidth = 5.0)
+#        plt.plot(time_12060[2:length_12060],ke_12060[2:length_12060], label="Grid 120x60", linewidth = 5.0)
+#        plt.plot(time_16080[2:length_16080],ke_16080[2:length_16080], label="Grid 160x80", linewidth = 5.0)
+
+ #       plt.plot(time_4020,ke_4020, label="Grid 40x20", linewidth = 5.0)
 
         ax.yaxis.get_offset_text().set_fontsize(50)
         plt.legend(fontsize=40)
-        plt.savefig(''.join(['meshIndependence_kineticEnergy.png']),bbox_inches='tight')    
+        plt.savefig(''.join(['plume_v3_stratified_keTime.png']),bbox_inches='tight')    
         plt.close('all')
 
-
-        # Plots kinetic energy vs. time, without restricting times.
+        # Plots buoyancy vs. time.
         plt.figure(figsize=(50, 30)) # Increases resolution.
         ax = plt.axes()
         plt.xlabel('Time',fontsize=80)
-        plt.ylabel('Kinetic Energy',fontsize=80)
+        plt.ylabel('Buoyancy',fontsize=80)
         plt.tick_params(axis='both', which='major', labelsize=60)
         plt.tick_params(axis='both', which='minor', labelsize=60)
-        plt.plot(DNS_time_2010,DNS_ke_2010,label="DNS_20x10x05", linewidth = 5.0)
-        plt.plot(LES_time_2010,LES_ke_2010,label="LES_20x10x05", linewidth = 5.0)
-        plt.plot(LES_time_4020,LES_ke_4020,label="LES_40x20x10", linewidth = 5.0)
-        plt.plot(DNS_time_8040,DNS_ke_8040,label="DNS_80x40x20", linewidth = 5.0)
-        plt.plot(LES_time_8040,LES_ke_8040,label="LES_80x40x20", linewidth = 5.0)
+        plt.plot(time_2010[2:length_2010],buoy_2010[2:length_2010], label="Grid 20x10", linewidth = 5.0)
+        plt.plot(time_4020[2:length_4020],buoy_4020[2:length_4020], label="Grid 40x20", linewidth = 5.0)
+        plt.plot(time_8040[2:length_8040],buoy_8040[2:length_8040], label="Grid 80x40", linewidth = 5.0)
+#        plt.plot(time_12060[2:length_12060],buoy_12060[2:length_12060], label="Grid 120x60", linewidth = 5.0)
+#        plt.plot(time_16080[2:length_16080],buoy_16080[2:length_16080], label="Grid 160x80", linewidth = 5.0)
         ax.yaxis.get_offset_text().set_fontsize(50)
         plt.legend(fontsize=40)
-        plt.savefig(''.join(['meshIndependence_kineticEnergy_anyTime.png']),bbox_inches='tight')
+        plt.savefig(''.join(['plume_v3_stratified_buoyTime.png']),bbox_inches='tight')
         plt.close('all')
 
-
-        # Plots buoyancy vs. time.
-#        plt.figure(figsize=(50, 30)) # Increases resolution.
-#        ax = plt.axes()
-#        plt.xlabel('Time',fontsize=80)
-#        plt.ylabel('Buoyancy',fontsize=80)
-#        plt.tick_params(axis='both', which='major', labelsize=60)
-#        plt.tick_params(axis='both', which='minor', labelsize=60)
-#        plt.plot(LES_time_2010[2:LES_length_2010],LES_buoy_2010[2:LES_length_2010], \
-#                label="LES_20x10", linewidth = 5.0)
-#        plt.plot(LES_time_4020[2:LES_length_4020],LES_buoy_4020[2:LES_length_4020], \
-#                label="LES_40x20", linewidth = 5.0)
-#        plt.plot(LES_time_8040[2:LES_length_8040],LES_buoy_8040[2:LES_length_8040], \
-#                label="LES_80x40", linewidth = 5.0)
-#        plt.plot(DNS_time_8040[2:DNS_length_8040],DNS_buoy_8040[2:DNS_length_8040], \
-#                label="DNS_80x40", linewidth = 5.0)
-#        
-#        ax.yaxis.get_offset_text().set_fontsize(50)
-#        plt.legend(fontsize=40)
-#        plt.savefig(''.join(['meshIndependence_buoyancy.png']),bbox_inches='tight')
-#        plt.close('all')
-
         # Plots average velocity.
+
         plt.figure(figsize=(50, 30)) # Increases resolution.
         ax = plt.axes()
         plt.xlabel('Time',fontsize=80)
         plt.ylabel('Average Velocity',fontsize=80)
         plt.tick_params(axis='both', which='major', labelsize=60)
         plt.tick_params(axis='both', which='minor', labelsize=60)
-        plt.plot(DNS_time_2010[2:DNS_length_2010],DNS_avgVel_2010[2:DNS_length_2010], \
-                label="DNS_20x10x05", linewidth = 5.0)
-        plt.plot(LES_time_2010[2:LES_length_2010],LES_avgVel_2010[2:LES_length_2010], \
-                label="LES_20x10x05", linewidth = 5.0)
-        plt.plot(LES_time_4020[2:LES_length_4020],LES_avgVel_4020[2:LES_length_4020], \
-                label="LES_40x20x10", linewidth = 5.0)
-        plt.plot(DNS_time_8040[2:DNS_length_8040],DNS_avgVel_8040[2:DNS_length_8040], \
-                label="DNS_80x40x20", linewidth = 5.0)
-        plt.plot(LES_time_8040[2:LES_length_8040],LES_avgVel_8040[2:LES_length_8040], \
-                label="LES_80x40x20", linewidth = 5.0)
-
+        plt.plot(time_2010[2:length_2010],avgVel_2010[2:length_2010], label="Grid 20x10", linewidth = 5.0)
+        plt.plot(time_4020[2:length_4020],avgVel_4020[2:length_4020], label="Grid 40x20", linewidth = 5.0)
+        plt.plot(time_8040[2:length_8040],avgVel_8040[2:length_8040], label="Grid 80x40", linewidth = 5.0)
+#        plt.plot(time_12060[2:length_12060],avgVel_12060[2:length_12060], label="Grid 120x60", linewidth = 5.0)
+#        plt.plot(time_16080[2:length_16080],avgVel_16080[2:length_16080], label="Grid 160x80", linewidth = 5.0)
         ax.yaxis.get_offset_text().set_fontsize(50)
         plt.legend(fontsize=40)
-        plt.savefig(''.join(['meshIndependence_averageVelocity.png']),bbox_inches='tight')
-        plt.close('all')
-
-# Plots kinetic energy vs. time, without restricting times.
-        plt.figure(figsize=(50, 30)) # Increases resolution.
-        ax = plt.axes()
-        plt.xlabel('Time',fontsize=80)
-        plt.ylabel('Kinetic Energy',fontsize=80)
-        plt.tick_params(axis='both', which='major', labelsize=60)
-        plt.tick_params(axis='both', which='minor', labelsize=60)
-        plt.plot(DNS_time_2010,DNS_avgVel_2010,label="DNS_20x10x05", linewidth = 5.0)
-        plt.plot(LES_time_2010,LES_avgVel_2010,label="LES_20x10x05", linewidth = 5.0)
-        plt.plot(LES_time_4020,LES_avgVel_4020,label="LES_40x20x10", linewidth = 5.0)
-        plt.plot(DNS_time_8040,DNS_avgVel_8040,label="DNS_80x40x20", linewidth = 5.0)
-        plt.plot(LES_time_8040,LES_avgVel_8040,label="LES_80x40x20", linewidth = 5.0)
-        
-        ax.yaxis.get_offset_text().set_fontsize(50)
-        plt.legend(fontsize=40)
-        plt.savefig(''.join(['meshIndependence_averageVelocity_anyTime.png']),bbox_inches='tight')
+        plt.savefig(''.join(['plume_v3_stratified_avgVel.png']),bbox_inches='tight')
         plt.close('all')
 
 
@@ -950,7 +1306,7 @@ def meshPlot( elements_x, elements_y, x_start, x_end, y_start, y_end, x_cluster,
 
         # Defines size of grid.
         x = mp.mesh_generation(x_cluster,elements_x,x_start,x_end,order,2,'in')
-        y = mp.mesh_generation(y_cluster,elements_y,y_start,y_end,order,2,'in')
+        y = mp.mesh_generation(y_cluster,elements_y,y_start,y_end,order,1,'in')
 
         for i in range(0,len(x)):
             xplot = np.zeros(len(y))

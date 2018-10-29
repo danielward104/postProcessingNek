@@ -1,7 +1,7 @@
 #Link to path in which postProcess_lib is stored.
 import sys
 import os
-sys.path.insert(1,'/home/ufaserv1_g/scdrw/Python')
+sys.path.insert(1,'/home/cserv1_a/soc_pg/scdrw/Documents/nbudocuments/PhD/SimNumerics/Python/postProcessingLib')
 import postProcess_lib as pp
 
 # Chooses which postprocessing script to run.
@@ -9,102 +9,98 @@ import postProcess_lib as pp
 # 1 - integrateDomain
 # 2 - integratePlume
 
-switch = 0
+switch = 2 
 
 def pseudocolour():
-        pp.PseudoColourPlotting( 'plume_v3_particles',
-        7,      # Order 
-        3,      # Dimension
-        1,      # Start file
-        10,     # Jump
-        1954,   # Final timestep
-        2,      # Number of plots
-        80,     # Elements in x
-        80,     # Elements in y
-        10,     # Elements in z
-        -5,     # x lower boundary
-        5,      # x upper boundary
-        0,      # y lower boundary
-        10,     # y upper boundary
-        0.25,   # Position of z slice
-        0.98,   # Clustering in x
-        0.98,   # Clustering in y
-        0       # Particles (0 - no, 1 - yes)
-        )
-        return
+	pp.PseudoColourPlotting( 'plume_v9_axi', 
+	7,	# Order 
+	3, 	# Dimension
+	1, 	# Start file
+	1, 	# Jump
+	1, 	# Final timestep
+	2, 	# Number of plots
+	8, 	# Elements in x
+	40, 	# Elements in y
+	8, 	# Elements in z
+	0.0, 	# Position of z slice
+	0 	# Particles (0 - no, 1 - yes)
+	)
+	return	
 
 def integrateDomain():
-        pp.integrateDomain( 'plume_v2_3D',
-        7,      # Order
-        3,      # Dimension
-        1,     # Jump
-        1,      # Final timestep
-        80,     # Elements in x
-        40,     # Elements in y
-        10,     # Elements in z
-        -5,     # x lower boundary
-        5,      # x upper boundary
-        0,      # y lower boundary
-        5,      # y upper boundary
-        0,      # z lower boundary
-        0.5,    # z upper boundary
-        0.98,   # Clustering in x
-        0.98,   # Clustering in y
-        0       # Particles (0 - no, 1 - yes)
-        )
-        return
+	pp.integrateDomain( 'plume_v4_LES',         
+	7,     	# Order
+	3,      # Dimension
+	10,	# Jump
+	100,	# Final timestep
+	12,     # Elements in x
+	6,     # Elements in y
+	3,     # Elements in z
+	-2,     # x lower boundary
+	2,      # x upper boundary
+	0,      # y lower boundary
+	2,      # y upper boundary
+	0,      # z lower boundary
+	1.0,    # z upper boundary
+	0.9998,   # Clustering in x
+	0.9998,   # Clustering in y
+	0       # Particles (0 - no, 1 - yes)
+	)
+	return
 
 def integratePlume():
-        pp.integratePlume( 'plume_v2_3D',
+        pp.integratePlume( 'plume_v9_axi',
         7,      # Order
+        0.003,  # Tolerance
         3,      # Dimension
-        1,     # Jump
-        1,      # Final timestep
-        80,     # Elements in x
-        40,     # Elements in y
-        10,     # Elements in z
-        -5,     # x lower boundary
-        5,      # x upper boundary
-        0,      # y lower boundary
-        5,      # y upper boundary
-        0,      # z lower boundary
-        0.5,    # z upper boundary
-        0.98,   # Clustering in x
-        0.98,   # Clustering in y
-        0       # Particles (0 - no, 1 - yes)
-        )
-        return
-
-def plotparticlesonly():
-        pp.plotparticlesonly(
-        7,      # Order 
-        1,      # Start file
         50,     # Jump
-        8140,   # Final particle file 
-        80,     # Elements in x
-        80,     # Elements in y
-        10,     # Elements in z
-        -5,     # x lower boundary
-        5,      # x upper boundary
-        0,      # y lower boundary
-        10,     # y upper boundary
-        0.25,   # Position of z slice
-        0.98,   # Clustering in x
-        0.98,   # Clustering in y
+        2466,	# Final timestep
+        8 ,     # Elements in x
+        20,     # Elements in y
+        8,	# Elements in z
+        0.0,    # Position of z slice
+        0.45,    # Umbrella cutoff
         )
         return
 
-def choose_function(argument):
-        switcher = {
-                0: pseudocolour,
-                1: integrateDomain,
-                2: integratePlume,
-                3: plotparticlesonly,
-        }
-        # Get the function from switcher dictionary
-        func = switcher.get(argument)
+def average_field():
+        pp.average_field('plume_v9_axi',
+        7,      # Order 
+        3,      # Dimension
+        3000,      # Start file
+        5,      # Jump
+        7000,      # Final timestep
+        8,      # Elements in x
+        30,     # Elements in y
+        8      # Elements in z
+        )
+        return
 
-        return func()
+def TKE():
+        pp.TKE('plume_v9_axi',
+        7,      # Order 
+        3,      # Dimension
+        3000,      # Start file
+        5,      # Jump
+        6113,      # Final timestep
+        8,      # Elements in x
+        30,     # Elements in y
+        8      # Elements in z
+        )
+        return
+	
+def choose_function(argument):
+	switcher = {
+		0: pseudocolour,
+		1: integrateDomain,
+	        2: integratePlume,
+                3: average_field,
+                4: TKE,
+	}
+	# Get the function from switcher dictionary
+	func = switcher.get(argument)
+
+	return func()
 
 choose_function(switch)
 

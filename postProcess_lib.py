@@ -16,7 +16,7 @@ import mappings as mp
 import plottingTools as pt
 import generalTools as tools
 
-def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_timestep, numPlots, elements_x, elements_y, elements_z, z_slice, particles ):
+def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_timestep, numPlots, elements_x, elements_y, elements_z, z_slice, particles, simulation_currently_running):
         # Plots data from a Nek5000 run.  Inputs are as follows:
         # filename: name that comes before the 0.f##### in the output files from Nek5000.
         # Order of the polynomial used for the spectral element method.
@@ -43,7 +43,12 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
             print(range_vals)
 
         # Reading in mesh data.
-        data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f00001']))
+        if (simulation_currently_running == 0):
+            data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join(['./data_files/', \
+                filename,'0.f00001']))
+        else:
+            data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f00001']))
+
         [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
 
         z = mesh[0,0,:,2]
@@ -52,8 +57,8 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
 
         # Find the point in the mesh where z_slice lies.
         nodes_z = elements_z*order + 1
-        z_mesh = int((nodes_z/(z_end - z_start))*(z_slice + 1))
-
+        z_mesh = int(nodes_z*(1 - (z_end - z_slice)/(z_end - z_start)))
+ 
         # Defining x,y coordinates.
         x = mesh[:,0,z_mesh,0]
         y = mesh[0,:,z_mesh,1]
@@ -81,7 +86,12 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
             sys.stdout.flush()
 
             # Reads data files.
-            data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f',repr(k).zfill(5)]))
+            if (simulation_currently_running == 0):
+                data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join(['./data_files/', \
+                    filename,'0.f',repr(k).zfill(5)]))
+            else:
+                data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename, \
+                    '0.f',repr(k).zfill(5)]))
 
             # Reshapes data onto uniform grid.
             if (dimension == 2):
@@ -182,8 +192,9 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
                         vmin=c_min,vmax=c_max)
             
             else:
-                
                 for plotNum in range(0,numPlots):
+
+                
                     if (plotNum == 0):
 
                         dataPlot = temperature
@@ -219,12 +230,12 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
                         
                             name = 'temperature_zoom'
 
-                        #c_min = 0 #1.25*0.0146
-                        #c_max = 1 #1.5*0.0146
+                        c_min = 0
+                        c_max = 30
                         pt.myPcolour(np.transpose(x_plot),y_plot,dataPlot,time,\
                                 x_plot_start,x_plot_end,y_plot_start,y_plot_end,\
                                 'Horizontal position','Vertical position',filename,name,\
-                                file_num,cmap='RdBu_r')#,vmin=c_min,vmax=c_max)
+                                file_num,cmap='RdBu_r',vmin=c_min,vmax=c_max)
 
 #                        pt.particlePcolour(np.transpose(x),y,dataPlot,time,'Horizontal position', \
 #                                'Vertical position',filename,name,file_num,x_pos,y_pos, \
@@ -238,8 +249,13 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
 
                         # Plotting Vertical velocity
                         dataPlot = verVel
-                        #c_min = -0.15
-                        #c_max = 0.25
+                        c_min = -2
+                        c_max = 24
+
+                        #bound = np.amax(abs(verVel))
+                        #c_min = -bound
+                        #c_max = bound
+
                         name = 'y-velocity'
 
                         x_plot = x
@@ -274,29 +290,29 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
                         pt.myPcolour(np.transpose(x_plot),y_plot,dataPlot,time,\
                                 x_plot_start,x_plot_end,y_plot_start,y_plot_end \
                                 ,'Horizontal position','Vertical position',filename,name \
-                                ,file_num,cmap='RdBu_r')#,vmin=c_min,vmax=c_max)
+                                ,file_num,cmap='RdBu_r',vmin=c_min,vmax=c_max)
                         
                         # Plotting magnitude of velocity
-                        dataPlot = magVel
+                        #dataPlot = magVel
                         #c_min = 0
                         #c_max = 1
-                        name = 'velocity-magnitude'
+                        #name = 'velocity-magnitude'
 
-                        if (zoomify == 1):
-                            name = 'velocity-magnitude_zoom'
-
-                            dataPlot = np.array(dataPlot)
-                            dataPlot = dataPlot[y_i_start:y_i_end,x_i_start:x_i_end]
-
-                        pt.myPcolour(np.transpose(x_plot),y_plot,dataPlot,time,\
-                                x_plot_start,x_plot_end,y_plot_start,y_plot_end \
-                                ,'Horizontal position','Vertical position',filename,name \
-                                ,file_num,cmap='RdBu_r')#,vmin=c_min,vmax=c_max)
-
+                        #if (zoomify == 1):
+                        #    name = 'velocity-magnitude_zoom'
+#
+#                            dataPlot = np.array(dataPlot)
+#                            dataPlot = dataPlot[y_i_start:y_i_end,x_i_start:x_i_end]
+#
+#                        pt.myPcolour(np.transpose(x_plot),y_plot,dataPlot,time,\
+#                                x_plot_start,x_plot_end,y_plot_start,y_plot_end \
+#                                ,'Horizontal position','Vertical position',filename,name \
+#                                ,file_num,cmap='RdBu_r')#,vmin=c_min,vmax=c_max)
+#
                         # Plotting horizontal velocity
                         dataPlot = horVel
-                        #c_min = -0.15
-                        #c_max = 0.15
+                        c_min = -0.1
+                        c_max = 0.1
                         name = 'x-velocity'
 
                         if (zoomify == 1):
@@ -308,7 +324,7 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
                         pt.myPcolour(np.transpose(x_plot),y_plot,dataPlot,time,\
                                 x_plot_start,x_plot_end,y_plot_start,y_plot_end \
                                 ,'Horizontal position','Vertical position',filename,name \
-                                ,file_num,cmap='RdBu_r')#,vmin=c_min,vmax=c_max)
+                                ,file_num,cmap='RdBu_r',vmin=c_min,vmax=c_max)
 
         return
 
@@ -467,7 +483,7 @@ def average_field( filename, order, dimension, start_file, jump, final_timestep,
 
         return
 
-def TKE( filename, order, dimension, start_file, jump, final_timestep, elements_x, elements_y, elements_z ):
+def TKE( filename, order, dimension, start_file, jump, final_timestep, elements_x, elements_y, elements_z, simulation_currently_running):
 
         final_file = int(final_timestep/jump)
 
@@ -482,7 +498,12 @@ def TKE( filename, order, dimension, start_file, jump, final_timestep, elements_
             print(range_vals)
 
         # Reading in mesh data.
-        data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f00001']))
+        if (simulation_currently_running == 0):
+            data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join(['./data_files/', \
+                filename,'0.f00001']))
+        else:
+            data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f00001']))
+
         [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
 
         # Defining x,y,z coordinates.
@@ -524,7 +545,12 @@ def TKE( filename, order, dimension, start_file, jump, final_timestep, elements_
             sys.stdout.flush()
 
             # Reads data files.
-            data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f',repr(k).zfill(5)]))
+            if (simulation_currently_running == 0):
+                data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join(['./data_files/', \
+                    filename,'0.f',repr(k).zfill(5)]))
+            else:
+                data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename, \
+                    '0.f',repr(k).zfill(5)]))
 
             # Reshapes data onto uniform grid.
             if (dimension == 2):
@@ -762,8 +788,6 @@ def integratePlume( filename, order, tol, dimension, jump, final_timestep, eleme
 
         temperature_avg = np.zeros((elements_x*order+1,elements_y*order+1,elements_z*order+1))
 
-
-
         # Reading in mesh data.
         data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f00001']))
         [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
@@ -811,7 +835,7 @@ def integratePlume( filename, order, tol, dimension, jump, final_timestep, eleme
                 
             temperature = mesh[:,:,t_i]
             horVel = mesh[:,:,u_i]
-#            verVel = np.transpose(mesh[:,:,v_i])
+            verVel = mesh[:,:,v_i]
 #            magVel = np.sqrt(np.square(verVel) + np.square(horVel))
 
             # Detecting plume margins.
@@ -928,26 +952,15 @@ def integratePlume( filename, order, tol, dimension, jump, final_timestep, eleme
                     del plume_outline_x_min[xi]
 
             # Computing virtual origin.
+            # ~~~~~~~~~~~~~~~~~~~~~~~~~
 
             keep_x = []
             keep_y = []
 
            # Finds x value at base of plume. 
-
-#            print(' ')
             min_idx = plume_outline_y_min.index(min(plume_outline_y_min))
 
-#            print(plume_outline_x_min)
-#            print(plume_outline_y_min)
-
             low_x = plume_outline_x_min[min_idx]
-
-#            for xi in range(0,len(plume_outline_y_min[0:])):
-#                if (plume_outline_y_min[xi] < 0.005):
-#                    keep_x.append(plume_outline_x_min[xi])
-#                    keep_y.append(plume_outline_y_min[xi])
-            
-#            low_x = keep_x[0]
 
             # Computes gradient of edge of plume.
             grad1 = (plume_outline_y_min[0] - 0)/(plume_outline_x_min[0] - low_x)
@@ -955,14 +968,128 @@ def integratePlume( filename, order, tol, dimension, jump, final_timestep, eleme
             virtual_source.append(-grad1*low_x)
 
             # Illustrates how virtual source is found.
+            output_dir = './Images_VirtualOrigin'
+            tools.mkdir_p(output_dir)
             plt.plot(plume_outline_x_min,plume_outline_y_min)
             plt.scatter(0,virtual_source[counter])
             plt.scatter(keep_x,keep_y)
             plt.scatter(low_x,0)
             plt.scatter(plume_outline_x_min[0],plume_outline_y_min[0])
-            plt.savefig(''.join([filename,'_',repr(file_num).zfill(5),'_outline2.png']),bbox_inches='tight')
+            plt.savefig(os.path.join(output_dir,''.join([filename,'_',repr(file_num).zfill(5), \
+                    '_points.png'])),bbox_inches='tight')
             plt.close('all')
-           
+          
+
+            # Plotting width of plume.
+            # ~~~~~~~~~~~~~~~~~~~~~~~~
+
+            plume_width = []
+            background_temp = 0.2*y
+
+            for j in range(0,len(y)):
+                data = np.transpose(verVel)
+                verVel_atHeight = data[j,:]#[x - background_temp[j] for x in temperature[j,:]]
+                
+                plt.plot(x,verVel_atHeight)
+                plt.title(''.join([', Height = %5.3f'%(y[j])]))
+                plt.savefig(''.join([filename,'_',repr(file_num).zfill(5), \
+                        '_height_',repr(j).zfill(3),'_Gauss.png']),bbox_inches='tight')
+                plt.close('all')
+
+
+                cut_off = 0.01*max(verVel_atHeight)
+
+                if(cut_off < 0.0002):
+                    break
+                else:
+
+                    for i in sorted(range(0,int(len(x)/2)),reverse=True):
+                        if(verVel_atHeight[i] < cut_off):
+                            verVel_atHeight_temp = verVel_atHeight[i+1:]
+                            x_temp = x[i+1:]
+                            save_i = i+1
+                            break
+
+                    for i in range(0,len(x_temp)):
+                        if(verVel_atHeight_temp[i] < cut_off):
+                            verVel_atHeight_temp2 = verVel_atHeight_temp[:-i]
+                            x_temp2 = x_temp[:-i]
+                            break
+
+                    #output_dir = './Images_Gauss'
+                    #tools.mkdir_p(output_dir)
+                    #plt.plot(x_temp2,verVel_atHeight_temp2)
+                    #plt.savefig(os.path.join(output_dir,''.join([filename,'_',repr(file_num).zfill(5), \
+                    #    '_height_',repr(j).zfill(3),'_Gauss.png'])),bbox_inches='tight')
+                    #plt.close('all')
+
+                    plume_width.append(max(x_temp2) - min(x_temp2))
+
+
+            plume_radius = [x/2 for x in plume_width]
+
+            output_dir = './Images_plumeWidth'
+            tools.mkdir_p(output_dir)
+            plt.plot(plume_radius,y[0:len(plume_width)])
+            plt.savefig(os.path.join(output_dir,''.join([filename,'_',repr(file_num).zfill(5), \
+                    '_width.png'])),bbox_inches='tight')
+            plt.close('all')
+
+
+###################################################################
+############################TESTING################################
+###################################################################
+
+            # Plotting
+            dataPlot = data 
+            name = 'y-velocity'
+
+            x_plot = x
+            y_plot = y
+
+            xmin = x_start
+            xmax = x_end
+            ymin = y_start
+            ymax = y_end
+
+            domain_x = xmax - xmin
+            domain_y = ymax - ymin
+
+            if (domain_y - domain_x > 0):
+                ratio = domain_x/domain_y
+                domain_y = 25
+                domain_x = ratio*25
+            else:
+                ratio = domain_y/domain_x
+                domain_x = 25
+                domain_y = ratio*25
+
+
+            plt.figure(figsize=(domain_x, domain_y)) # Increases resolution.
+            plt.title(''.join([name,', time = %5.3f'%(time)]),fontsize=40)
+            axes = plt.gca()
+            axes.set_xlim([xmin,xmax])
+            axes.set_ylim([ymin,ymax])
+            plt.xticks(fontsize = 30)
+            plt.yticks(fontsize = 30)
+
+            plt.contourf(x,y,dataPlot,100,cmap='RdBu_r')
+            cbar = plt.colorbar()
+
+            cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
+
+            plt.plot(plume_radius,y[0:len(plume_width)],'k')
+
+            plt.savefig(os.path.join('./Images',''.join([filename,'_',name,'_', \
+                repr(file_num).zfill(5),'.png'])),bbox_inches='tight')
+
+            plt.close('all')
+
+        
+###################################################################
+############################TESTING################################
+###################################################################
+
             counter = counter + 1
 
             # Removing zero elements from both buoyancy_flux and y_plot.

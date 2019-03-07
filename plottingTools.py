@@ -1,9 +1,13 @@
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 import numpy as np
+import os
+import generalTools as tools
 
 # Plots pseudocolour.
 def myPcolour(x,y,data,time,xmin,xmax,ymin,ymax,x_label,y_label,filename,name,file_counter,**kwargs):
+
+        forMovie = 0
 
         domain_x = xmax - xmin
         domain_y = ymax - ymin
@@ -28,19 +32,29 @@ def myPcolour(x,y,data,time,xmin,xmax,ymin,ymax,x_label,y_label,filename,name,fi
         plt.yticks(fontsize = 30)
 
         # Pseudocolour
-        #plt.pcolormesh(x,y,data,**kwargs)
+        plt.pcolormesh(x,y,data,**kwargs)
 
         # Contour plot
         #plt.contour(x,y,data,100,**kwargs)
 
         # Filled contour plot
-        plt.contourf(x,y,data,100,**kwargs)
-        cbar = plt.colorbar()
-        #plt.contour(x,y,data,100,colors='k')
+#        plt.contourf(x,y,data,100,**kwargs)i
 
-        cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
-        plt.savefig(''.join([filename,'_',name,'_',repr(file_counter).zfill(5),'.png']), \
-            bbox_inches='tight')
+        if (forMovie == 0):
+            cbar = plt.colorbar()
+        #plt.contour(x,y,data,100,colors='k')
+            cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
+
+            output_dir = './Images'
+            tools.mkdir_p(output_dir)
+   
+        else:
+            output_dir = './Images_forMovie'
+            tools.mkdir_p(output_dir)
+
+ 
+        plt.savefig(os.path.join(output_dir,''.join([filename,'_',name,'_', \
+            repr(file_counter).zfill(5),'.png'])),bbox_inches='tight')
 #       plt.savefig('temp.png')
 
         plt.close('all')

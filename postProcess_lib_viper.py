@@ -28,9 +28,9 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
         # z_slice: location of the slice through the x-direction.
         # particles: switch to plot particle paths if particles are included in the simulation.
 
-        order = order - 1
+	order = order - 1
 
-        applyMaxAndMinToPlots = 1
+	applyMaxAndMinToPlots = 1
 
         quiver = 0      
 
@@ -64,8 +64,8 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
         y_mesh = int(nodes_y*(1 - (y_end - y_slice)/(y_end - y_start)))
 
         # Defining x,y coordinates.
-        x = mesh[:,y_mesh,0,0]
-        z = mesh[0,y_mesh,:,2]
+	x = mesh[:,y_mesh,0,0]
+	z = mesh[0,y_mesh,:,2]
 
         x_start = x[0]
         x_end = x[-1]
@@ -106,15 +106,6 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
                 [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
                 mesh = mesh[:,y_mesh,:,:]
                 
-            # For some reason, coordinates are not plotted in files following the first when particles 
-            # are included in the simulation.
-            if (particles == 1):
-                if (k > 1):
-                    u_i = u_i - 3
-                    v_i = v_i - 3
-                    w_i = w_i - 3
-                    t_i = t_i - 3
-
             # Consider only the necessary number of plots.
             if (numPlots == 1):
                 temperature = np.transpose(mesh[:,:,t_i])
@@ -122,9 +113,46 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
             elif (numPlots == 2):
                 temperature = np.transpose(mesh[:,:,t_i])
                 horVel = np.transpose(mesh[:,:,u_i])
-                horVel2 = np.transpose(mesh[:,:,v_i])
                 verVel = np.transpose(mesh[:,:,w_i])
-                magVel = np.sqrt(np.square(verVel) + np.square(horVel) + np.square(horVel2))
+                magVel = np.sqrt(np.square(verVel) + np.square(horVel))
+
+#            if (particles == 1):
+#                if (numPlots == 1):
+#                    if (k == 0) or (k == 1):
+#                        temperature = mesh[:,:,7]
+#                    else:
+#                        temperature = mesh[:,:,4]
+#                        
+#                    if (quiver == 1):
+#                        verVel = mesh[:,:,1]
+#                        horVel = mesh[:,:,0]
+#                    
+#                elif (numPlots == 2):
+#                    if (k == 1):
+#                        verVel = mesh[:,:,3]
+#                        horVel = mesh[:,:,4]
+#                        magVel = np.sqrt(np.square(verVel) + np.square(horVel))
+#                        temperature = mesh[:,:,7]
+#                    else:
+#                        verVel = mesh[:,:,1]
+#                        horVel = mesh[:,:,0]
+#                        magVel = np.sqrt(np.square(verVel) + np.square(horVel))
+#                        temperature = mesh[:,:,4]
+#
+#            elif (particles == 0):
+#                if (numPlots == 1):
+#                    temperature = np.transpose(mesh[:,:,7])
+#                    
+#                    if (quiver == 1):
+#                        verVel = mesh[:,:,3]
+#                        horVel = mesh[:,:,2]
+#
+#                elif (numPlots == 2):
+#                    verVel = np.transpose(mesh[:,:,4])
+#                    horVel = np.transpose(mesh[:,:,3])
+#                    temperature = np.transpose(mesh[:,:,7])
+#                    magVel = np.sqrt(np.square(verVel) + np.square(horVel))
+
 
 ######################################################################
 ############################ Particles!! #############################
@@ -151,37 +179,27 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
                     y_pos[i] = float(line[1])
                     z_pos[i] = float(line[2])
 
-                dataPlot = temperature 
+                dataPlot = temperature
 #                c_min = 0.0
 #                c_max = 1.0
                 name = 'temperature'
-                pt.particlePcolour(np.transpose(x),z,dataPlot,time,'Horizontal position', \
-                        'Vertical position',filename,name,file_num,x_pos,z_pos,cmap='RdBu_r') #, \
+                pt.particlePcolour(np.transpose(x),y,np.transpose(dataPlot),time,'Horizontal position', \
+                        'Vertical position',filename,name,file_num,x_pos,y_pos,cmap='RdBu_r') #, \
 #                        vmin=c_min,vmax=c_max)
             
-#                pt.myPcolour(np.transpose(x),y,np.transpose(dataPlot),time,'Horizontal position', \
-#                        'Vertical position',filename,name,file_num,cmap='RdBu_r', \
-#                        vmin=c_min,vmax=c_max)
-#
-#
-                dataPlot = verVel
-#                c_min = 0.0
-#                c_max = 0.1
-                name = 'verVel'
-                pt.particlePcolour(np.transpose(x),z,dataPlot,time,'Horizontal position', \
-                        'Vertical position',filename,name,file_num,x_pos,z_pos,cmap='RdBu_r') #, \
-#                        vmin=c_min,vmax=c_max)
-        
-                dataPlot = horVel
-                name = 'horVel'
-                pt.particlePcolour(np.transpose(x),z,dataPlot,time,'Horizontal position', \
-                        'Vertical position',filename,name,file_num,x_pos,z_pos,cmap='RdBu_r')
+                pt.myPcolour(np.transpose(x),y,np.transpose(dataPlot),time,'Horizontal position', \
+                        'Vertical position',filename,name,file_num,cmap='RdBu_r', \
+                        vmin=c_min,vmax=c_max)
+
 
                 dataPlot = magVel
+                c_min = 0.0
+                c_max = 0.1
                 name = 'magVel'
-                pt.particlePcolour(np.transpose(x),z,dataPlot,time,'Horizontal position', \
-                        'Vertical position',filename,name,file_num,x_pos,z_pos,cmap='RdBu_r') 
-
+                pt.particlePcolour(np.transpose(x),y,np.transpose(dataPlot),time,'Horizontal position', \
+                        'Vertical position',filename,name,file_num,x_pos,y_pos,cmap='RdBu_r', \
+                        vmin=c_min,vmax=c_max)
+        
 ######################################################################
 ########################## No particles!! ############################
 ######################################################################
@@ -228,14 +246,14 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
                         c_min = 0
                         c_max = 17.5
 
-                        if (applyMaxAndMinToPlots == 1):
-                                pt.myPcolour(np.transpose(x_plot),z_plot,dataPlot,time,\
+			if (applyMaxAndMinToPlots == 1):
+                        	pt.myPcolour(np.transpose(x_plot),z_plot,dataPlot,time,\
                                 x_plot_start,x_plot_end,z_plot_start,z_plot_end,\
                                 'Horizontal position','Vertical position',filename,name,\
                                 file_num,cmap='RdBu_r',vmin=c_min,vmax=c_max)
 
-                        else:
-                                pt.myPcolour(np.transpose(x_plot),z_plot,dataPlot,time,\
+			else:
+				pt.myPcolour(np.transpose(x_plot),z_plot,dataPlot,time,\
                                 x_plot_start,x_plot_end,z_plot_start,z_plot_end,\
                                 'Horizontal position','Vertical position',filename,name,\
                                 file_num,cmap='RdBu_r')
@@ -290,7 +308,7 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
                             name = 'z-velocity_zoom'
 
 
-                        if (applyMaxAndMinToPlots == 1):
+			if (applyMaxAndMinToPlots == 1):
                                 pt.myPcolour(np.transpose(x_plot),z_plot,dataPlot,time,\
                                 x_plot_start,x_plot_end,z_plot_start,z_plot_end,\
                                 'Horizontal position','Vertical position',filename,name,\
@@ -783,11 +801,11 @@ def integratePlume( filename, file_loc, order, dimension, start_file, jump, fina
         # y_cluster: geometric ratio used to cluster gridpoints in the y-direction.
         # gridType: 0 - half domain (i.e. x goes from 0-50 while y goes from 0-100 with a half-plume), 1 - full domain (i.e. domain is square).
 
-        order = order - 1
+	order = order - 1
 
         final_file = int(final_timestep/jump)
 
-        ii = 0
+	ii = 0
 
         ambientTemp = 273.15
         ambientDensity = 1027
@@ -808,10 +826,10 @@ def integratePlume( filename, file_loc, order, dimension, start_file, jump, fina
 
         [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
 
-        # Defining x,y,z coordinates.
-        x = mesh[:,0,0,0]
-        y = mesh[0,:,0,1]
-        z = mesh[0,0,:,2]
+	# Defining x,y,z coordinates.
+	x = mesh[:,0,0,0]
+	y = mesh[0,:,0,1]
+	z = mesh[0,0,:,2]
 
         x_start = x[0]
         x_end = x[-1]
@@ -820,16 +838,16 @@ def integratePlume( filename, file_loc, order, dimension, start_file, jump, fina
         z_start = z[0]
         z_end = z[-1]
 
-        height = len(z)
+	height = len(z)
 
-        x_len = len(x)
+	x_len = len(x)
         y_len = len(y)
 
         radius = np.zeros((len(x),len(y)))
 
-        for i in range(x_len):
-            for j in range(y_len):
-                radius[i,j] = (x[i]**2 + y[j]**2)**0.5
+	for i in range(x_len):
+	    for j in range(y_len):
+		radius[i,j] = (x[i]**2 + y[j]**2)**0.5
 
         # Initialises files to write to.  Column 1 will contain time data, column 2 will contain 
             # the data represented by the name of the file.
@@ -839,7 +857,7 @@ def integratePlume( filename, file_loc, order, dimension, start_file, jump, fina
 
         for t in range_vals:
 
-            file_num = int((t-1)/jump + 1)
+	    file_num = int((t-1)/jump + 1)
 
             # Outputs counter to terminal.
             if (start_file == 1):
@@ -847,13 +865,13 @@ def integratePlume( filename, file_loc, order, dimension, start_file, jump, fina
             else:
                 files_remaining = int(final_file - (t-range_vals[0])/jump - start_file/jump)
 
-            sys.stdout.write("\r")
+	    sys.stdout.write("\r")
             sys.stdout.write("Files remaining: {:2d}".format(files_remaining))
             sys.stdout.flush()
 
             # Reads data files.
             data,time,istep,header,elmap,u_i,v_i,w_i,t_i = \
-                        rn.readnek(''.join([file_loc,filename,'0.f',repr(t).zfill(5)]))
+			rn.readnek(''.join([file_loc,filename,'0.f',repr(t).zfill(5)]))
 
             # Reshapes data onto uniform grid.
             if (dimension == 2):
@@ -868,64 +886,64 @@ def integratePlume( filename, file_loc, order, dimension, start_file, jump, fina
             verVel = mesh[:,:,:,v_i]
 #            magVel = np.sqrt(np.square(verVel) + np.square(horVel))
 
-            Q = np.zeros((height,1))
-            M = np.zeros((height,1))
-            F = np.zeros((height,1))
+	    Q = np.zeros((height,1))
+	    M = np.zeros((height,1))
+	    F = np.zeros((height,1))
 
-            x_loc3D = []
-            y_loc3D = []
-            z_loc3D = []
+	    x_loc3D = []
+	    y_loc3D = []
+	    z_loc3D = []
 
-            # Running through heights
-            for k in range(3,height):
+	    # Running through heights
+	    for k in range(3,height):
 
-                int1 = np.multiply(verVel[:,:,k],radius)
-                int2 = np.multiply(np.multiply(verVel[:,:,k],verVel[:,:,k]),radius)
-                int3 = np.multiply(np.multiply(-temperature[:,:,k],verVel[:,:,k]),radius)
-        
-                sum_total1 = 0
-                sum_total2 = 0
-                sum_total3 = 0
+		int1 = np.multiply(verVel[:,:,k],radius)
+		int2 = np.multiply(np.multiply(verVel[:,:,k],verVel[:,:,k]),radius)
+		int3 = np.multiply(np.multiply(-temperature[:,:,k],verVel[:,:,k]),radius)
+	
+		sum_total1 = 0
+		sum_total2 = 0
+		sum_total3 = 0
 
-                x_tot = x_len - 1
-                y_tot = y_len - 1
+	        x_tot = x_len - 1
+	        y_tot = y_len - 1
 
-                tol = 0.1
+		tol = 0.1
 
-                for i in range(0,x_tot):
-                    for j in range(0,y_tot):
-                        if temperature[i,j,k] > tol:
-                            sum1 = int1[i,j] + int1[i+1,j] + int1[i,j+1] + int1[i+1,j+1]
-                            sum2 = int2[i,j] + int2[i+1,j] + int2[i,j+1] + int2[i+1,j+1]
+        	for i in range(0,x_tot):
+            	    for j in range(0,y_tot):
+			if temperature[i,j,k] > tol:
+	                    sum1 = int1[i,j] + int1[i+1,j] + int1[i,j+1] + int1[i+1,j+1]
+			    sum2 = int2[i,j] + int2[i+1,j] + int2[i,j+1] + int2[i+1,j+1]
                             sum3 = int3[i,j] + int3[i+1,j] + int3[i,j+1] + int3[i+1,j+1]
-                            dx = x[i+1] - x[i]
-                            dy = y[j+1] - y[j]
-                            trap1 = sum1*dx*dy/4
-                            trap2 = sum2*dx*dy/4
-                            trap3 = sum3*dx*dy/4
-                            sum_total1 = sum_total1 + trap1
-                            sum_total2 = sum_total2 + trap2
-                            sum_total3 = sum_total3 + trap3
+        	            dx = x[i+1] - x[i]
+                	    dy = y[j+1] - y[j]
+                    	    trap1 = sum1*dx*dy/4
+			    trap2 = sum2*dx*dy/4
+			    trap3 = sum3*dx*dy/4
+                    	    sum_total1 = sum_total1 + trap1
+			    sum_total2 = sum_total2 + trap2
+			    sum_total3 = sum_total3 + trap3
 
-                Q[k] = sum_total1
-                M[k] = sum_total2
-                F[k] = sum_total3
+		Q[k] = sum_total1
+		M[k] = sum_total2
+		F[k] = sum_total3
 
-            plt.figure(figsize=(20,20))
-            plt.plot(Q,z,color='blue')
-            plt.plot(M,z,color='green')
-            plt.plot(F,z,color='red')
+	    plt.figure(figsize=(20,20))
+	    plt.plot(Q,z,color='blue')
+	    plt.plot(M,z,color='green')
+	    plt.plot(F,z,color='red')
 
-            plt.gca().legend(('Q','M','F'))
+	    plt.gca().legend(('Q','M','F'))
 
-            plt.savefig(''.join(['fluxes',repr(file_num).zfill(5),'.png']),bbox_inches='tight')
-            plt.close('all')
+	    plt.savefig(''.join(['fluxes',repr(file_num).zfill(5),'.png']),bbox_inches='tight')
+	    plt.close('all')
 
             # Writing data to file.
-            f = open(''.join(['./integration/volumeFlux/volumeFlux',repr(file_num).zfill(5),'.txt']),\
-                                                                                                "wb")
-            np.savetxt(f, Q, fmt='%1.8e', header=''.join(['time = ',repr(time)]))
-            f.close()
+	    f = open(''.join(['./integration/volumeFlux/volumeFlux',repr(file_num).zfill(5),'.txt']),\
+												"wb")
+	    np.savetxt(f, Q, fmt='%1.8e', header=''.join(['time = ',repr(time)]))
+	    f.close()
 
 
             # Computing the integral of the energy and buoyancy.
@@ -941,9 +959,9 @@ def integratePlume( filename, file_loc, order, dimension, start_file, jump, fina
 #            buoyancy_total = trapezium_2D(y,x,np.array(buoyancy))
 #            avgVel = trapezium_2D(y,x,magVel)
 
-            # Computing volume flux.
-#           radius = 
-#           wr = verVel*radius
+	    # Computing volume flux.
+#	    radius = 
+#	    wr = verVel*radius
 
         return
 
@@ -1404,12 +1422,12 @@ def scatterPlume( filename, file_loc, order, dimension, start_file, jump, final_
         # y_cluster: geometric ratio used to cluster gridpoints in the y-direction.
         # gridType: 0 - half domain (i.e. x goes from 0-50 while y goes from 0-100 with a half-plume), 1 - full domain (i.e. domain is square).
 
-        order = order - 1
+	order = order - 1
 
         final_file = int(final_timestep/jump)
 
-        previous = 59
-        ii = 0 + previous*2
+	previous = 59
+	ii = 0 + previous*2
 
         if (start_file == 1):
             range_vals = [x - (jump - 1) for x in np.array(range(1,final_file+1))*jump]
@@ -1425,10 +1443,10 @@ def scatterPlume( filename, file_loc, order, dimension, start_file, jump, final_
 
         [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
 
-        # Defining x,y,z coordinates.
-        x = mesh[:,0,0,0]
-        y = mesh[0,:,0,1]
-        z = mesh[0,0,:,2]
+	# Defining x,y,z coordinates.
+	x = mesh[:,0,0,0]
+	y = mesh[0,:,0,1]
+	z = mesh[0,0,:,2]
 
         x_start = x[0]
         x_end = x[-1]
@@ -1437,14 +1455,14 @@ def scatterPlume( filename, file_loc, order, dimension, start_file, jump, final_
         z_start = z[0]
         z_end = z[-1]
 
-        height = len(z)
+	height = len(z)
 
-        x_len = len(x)
+	x_len = len(x)
         y_len = len(y)
 
         for t in range_vals:
 
-            file_num = int((t-1)/jump + 1)
+	    file_num = int((t-1)/jump + 1)
 
             # Outputs counter to terminal.
             if (start_file == 1):
@@ -1452,13 +1470,13 @@ def scatterPlume( filename, file_loc, order, dimension, start_file, jump, final_
             else:
                 files_remaining = int(final_file - (t-range_vals[0])/jump - start_file/jump)
 
-            sys.stdout.write("\r")
+	    sys.stdout.write("\r")
             sys.stdout.write("Files remaining: {:2d}".format(files_remaining))
             sys.stdout.flush()
 
             # Reads data files.
             data,time,istep,header,elmap,u_i,v_i,w_i,t_i = \
-                        rn.readnek(''.join([file_loc,filename,'0.f',repr(t).zfill(5)]))
+			rn.readnek(''.join([file_loc,filename,'0.f',repr(t).zfill(5)]))
 
             # Reshapes data onto uniform grid.
             if (dimension == 2):
@@ -1470,30 +1488,30 @@ def scatterPlume( filename, file_loc, order, dimension, start_file, jump, final_
 
             temperature = mesh[:,:,:,t_i]
 
-            x_loc3D = []
-            y_loc3D = []
-            z_loc3D = []
+	    x_loc3D = []
+	    y_loc3D = []
+	    z_loc3D = []
 
-            # Running through heights
-            for k in range(3,height):
+	    # Running through heights
+	    for k in range(3,height):
 
-                sum_total = 0
-                x_tot = x_len - 1
-                y_tot = y_len - 1
+		sum_total = 0
+	        x_tot = x_len - 1
+	        y_tot = y_len - 1
 
-                tol = 0.1
+		tol = 0.1
 
-#               x_pos = []
-#               y_pos = []
+#		x_pos = []
+#		y_pos = []
 
-                for i in range(0,x_tot):
-                    for j in range(0,y_tot):
-                        if temperature[i,j,k] > tol:
+        	for i in range(0,x_tot):
+            	    for j in range(0,y_tot):
+			if temperature[i,j,k] > tol:
 
-#                           x_pos.append(x[i])
-#                           y_pos.append(y[j])
+#			    x_pos.append(x[i])
+#			    y_pos.append(y[j])
 
-                            x_loc3D.append(x[i])
+			    x_loc3D.append(x[i])
                             y_loc3D.append(y[j])
                             z_loc3D.append(z[k])
 
@@ -1507,9 +1525,9 @@ def scatterPlume( filename, file_loc, order, dimension, start_file, jump, final_
 #               plt.close('all')
 
 
-            pt.plot3DScatter(x_loc3D,y_loc3D,z_loc3D,x_start,x_end,y_start,y_end,\
-                                                        z_start,z_end,order,ii,time,file_num,x,y,z)
-            ii = ii + 2
-            ii = ii % 360
+	    pt.plot3DScatter(x_loc3D,y_loc3D,z_loc3D,x_start,x_end,y_start,y_end,\
+							z_start,z_end,order,ii,time,file_num,x,y,z)
+	    ii = ii + 2
+	    ii = ii % 360
 
         return

@@ -45,7 +45,7 @@ def myPcolour(x,y,data,time,xmin,xmax,ymin,ymax,x_label,y_label,filename,name,fi
         #plt.contour(x,y,data,100,colors='k')
             cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
 
-            output_dir = './Images'
+            output_dir = './Images2'
             tools.mkdir_p(output_dir)
    
         else:
@@ -61,23 +61,58 @@ def myPcolour(x,y,data,time,xmin,xmax,ymin,ymax,x_label,y_label,filename,name,fi
 
         return
 
+def plot3DScatter(x,y,z,x_min,x_max,y_min,y_max,z_min,z_max,order,ii,time,file_num,x_grid,y_grid,z_grid):
+
+        from mpl_toolkits.mplot3d import Axes3D
+        import math
+
+        fig = plt.figure(figsize=(20,20))
+        ax = fig.add_subplot(111,projection='3d')
+
+        for i in x_grid[0::order]:
+            plt.plot([i,i],[y_min,y_max],[z_min,z_min],linewidth=0.5,color='0.5')
+            plt.plot([i,i],[y_min,y_max],[z_min,z_max],linewidth=0.5,color='0.5')
+        for i in y_grid[0::order]:
+            plt.plot([x_min,x_max],[i,i],[z_min,z_min],linewidth=0.5,color='0.5')
+            plt.plot([x_max,x_max],[i,i],[z_min,z_max],linewidth=0.5,color='0.5')
+        for i in z_grid[0::order]:
+            plt.plot([x_max,x_max],[y_min,y_max],[i,i],linewidth=0.5,color='0.5')
+            plt.plot([x_min,x_max],[y_min,y_max],[i,i],linewidth=0.5,color='0.5')
+
+        ax.scatter(x,y,z)
+        ax.set_xlim3d(x_min,x_max)
+        ax.set_ylim3d(y_min,y_max)
+        ax.set_zlim3d(z_min,z_max)
+
+        ax.elev = 8 #*math.sin(ii*math.pi/(180*50))
+        ax.azim = ii
+
+        ax.set_axis_off()
+        
+        plt.title(''.join(['Time = ',repr(time)]),fontsize=20)
+        plt.savefig(os.path.join(''.join(['scatter3D_',repr(file_num).zfill(5),'.png']))\
+                                                                       ,bbox_inches='tight')
+        plt.close('all')
+
+        return
+
 # Plots pseudocolour, including particle behaviour.
 def particlePcolour(x,y,data,time,x_label,y_label,filename,name,file_counter,x_ppos,y_ppos,**kwargs):
 
-#       domain_x = x[0,-1] - x[0,0]
-#        domain_y = y[-1,0] - y[0,0]
-#
-#        if (domain_y - domain_x > 0):
-#            ratio = domain_x/domain_y
-#            domain_y = 25
-#            domain_x = ratio*25
-#        else:
-#            ratio = domain_y/domain_x
-#            domain_x = 25
-#            domain_y = ratio*25
+        domain_x = x[-1] - x[0]
+        domain_y = y[-1] - y[0]
 
-        domain_x = 20
-        domain_y = 10
+        if (domain_y - domain_x > 0):
+            ratio = domain_x/domain_y
+            domain_y = 20
+            domain_x = ratio*20
+        else:
+            ratio = domain_y/domain_x
+            domain_x = 20
+            domain_y = ratio*20
+
+#        domain_x = 20
+#        domain_y = 10
 
         plt.figure(figsize=(domain_x, domain_y)) # Increases resolution.
         plt.title(''.join([name,', time = %2d'%round(time,2)]),fontsize=40)
@@ -87,9 +122,9 @@ def particlePcolour(x,y,data,time,x_label,y_label,filename,name,file_counter,x_p
         plt.yticks(fontsize = 30)
         plt.pcolormesh(x,y,data,**kwargs)
 
-        axes = plt.gca()
-        axes.set_xlim([min(x),max(x)])
-        axes.set_ylim([min(y),max(y)])
+#        axes = plt.gca()
+#        axes.set_xlim([min(x),max(x)])
+#        axes.set_ylim([min(y),max(y)])
 
         cbar = plt.colorbar()
         cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar

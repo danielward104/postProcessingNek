@@ -45,7 +45,7 @@ def myPcolour(x,y,data,time,xmin,xmax,ymin,ymax,x_label,y_label,filename,name,fi
         #plt.contour(x,y,data,100,colors='k')
             cbar.ax.tick_params(labelsize = 30)  # vertically oriented colorbar
 
-            output_dir = './Images2'
+            output_dir = './Images'
             tools.mkdir_p(output_dir)
    
         else:

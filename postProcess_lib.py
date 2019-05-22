@@ -48,10 +48,10 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
 
         # Reading in mesh data.
         if (simulation_currently_running == 0):
-            data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join(['./dataFiles1/', \
+            data,time,istep,header,elmap,u_i,v_i,w_i,t_i,s_i = rn.readnek(''.join(['./dataFiles1/', \
                 filename,'0.f00001']))
         else:
-            data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename,'0.f00001']))
+            data,time,istep,header,elmap,u_i,v_i,w_i,t_i,s_i = rn.readnek(''.join([filename,'0.f00001']))
 
         [ mesh ] = rn.reshapenek3D(data, elements_x, elements_y, elements_z)
 
@@ -91,10 +91,10 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
 
             # Reads data files.
             if (simulation_currently_running == 0):
-                data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join(['./dataFiles1/', \
+                data,time,istep,header,elmap,u_i,v_i,w_i,t_i,s_i = rn.readnek(''.join(['./dataFiles1/', \
                     filename,'0.f',repr(k).zfill(5)]))
             else:
-                data,time,istep,header,elmap,u_i,v_i,w_i,t_i = rn.readnek(''.join([filename, \
+                data,time,istep,header,elmap,u_i,v_i,w_i,t_i,s_i = rn.readnek(''.join([filename, \
                     '0.f',repr(k).zfill(5)]))
 
             # Reshapes data onto uniform grid.
@@ -118,9 +118,11 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
             # Consider only the necessary number of plots.
             if (numPlots == 1):
                 temperature = np.transpose(mesh[:,:,t_i])
+                scalar = np.transpose(mesh[:,:,s_i])
 
             elif (numPlots == 2):
                 temperature = np.transpose(mesh[:,:,t_i])
+                scalar = np.transpose(mesh[:,:,s_i])
                 horVel = np.transpose(mesh[:,:,u_i])
                 horVel2 = np.transpose(mesh[:,:,v_i])
                 verVel = np.transpose(mesh[:,:,w_i])
@@ -192,8 +194,8 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
                 
                     if (plotNum == 0):
 
-                        dataPlot = temperature
-                        name = 'temperature'
+                        dataPlot = scalar
+                        name = 'passive-scalar'
 
                         x_plot = x
                         z_plot = z
@@ -226,7 +228,7 @@ def PseudoColourPlotting( filename, order, dimension, start_file, jump, final_ti
                             name = 'temperature_zoom'
 
                         c_min = 0
-                        c_max = 17.5
+                        c_max = 1
 
                         if (applyMaxAndMinToPlots == 1):
                                 pt.myPcolour(np.transpose(x_plot),z_plot,dataPlot,time,\

@@ -61,12 +61,15 @@ def readnek( fname ):
             var[2] = 1
         if (int('T' in fields) == 1):
             var[3] = 1
+        if (int('S' in fields) == 1):
+            var[4] = 1
 
         # Saves indices of velocity and temperature.
         u_i = (ndim + 1) - 1
         v_i = (ndim + 2) - 1
         w_i = (ndim + 3) - 1
         t_i = (2*ndim + 2) - 1
+        s_i = 2*ndim + 2
 
         # This will probably need resorting for 2D postprocessing, re. w_i and ndim = 2.
 
@@ -97,7 +100,7 @@ def readnek( fname ):
                 for idim in iter_range:
                     data[iel-1,:,idim-1] = np.fromfile(f,dtype='float32',count=npel)
 
-    return [data,time,istep,header,elmap,u_i,v_i,w_i,t_i]
+    return [data,time,istep,header,elmap,u_i,v_i,w_i,t_i,s_i]
 
 
 def reshapenek3D( data, nelx, nely ,nelz ):
